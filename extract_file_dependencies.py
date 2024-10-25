@@ -1,15 +1,18 @@
+"""
+Dieses Modul analysiert die Abhängigkeiten zwischen Dateien in einem GitHub-Repository.
+"""
+
 import os
 import json
 import google.generativeai as genai
 import typing_extensions as typing
 import networkx as nx
 import matplotlib.pyplot as plt
-from repo_manager import get_project_files
+from repo_copy_and_overview import get_project_files
 from dotenv import load_dotenv
 
-
-repo_path = "Quizcraft"  # Pfad zum kopiertem Repository-Verzeichnis
-
+# Konstanten für Pfad und Modell-Setup
+REPO_PATH = "Quizcraft"  # Pfad zum kopierten Repository-Verzeichnis
 
 # Lade die .env Datei und API-Schlüssel
 load_dotenv()
@@ -23,27 +26,28 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Definiere die Struktur für die Rückgabe der Abhängigkeiten
 class Edge(typing.TypedDict):
+    """Repräsentiert eine Abhängigkeit zwischen zwei Dateien."""
     source: str
     target: str
 
 class DependencyGraph(typing.TypedDict):
+    """Repräsentiert den Graphen der Abhängigkeiten mit Knoten und Kanten."""
     nodes: list[str]
     edges: list[Edge]
 
-
 # Verwende get_project_files, um die Dateien im 'Quizcraft'-Verzeichnis zu laden
-code_files = get_project_files(repo_path)
+code_files = get_project_files(REPO_PATH)
 if not code_files:
     print("Keine relevanten Dateien gefunden.")
 else:
     # Modellaufruf zur Analyse der Abhängigkeiten im Repository
-    prompt = (
-        "Analyze the dependencies between files, and only the files in the 'Quizcraft' GitHub repository. "
+    PROMPT = (
+        "Analyze the dependencies between files in the 'Quizcraft' GitHub repository. "
         "Return the analysis in the form of nodes and edges. "
         f"The files: {code_files}"
     )
     result = model.generate_content(
-        prompt,
+        PROMPT,
         generation_config=genai.GenerationConfig(
             response_mime_type="application/json",
             response_schema=DependencyGraph
