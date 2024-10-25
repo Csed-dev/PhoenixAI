@@ -15,7 +15,6 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
-          node-version: '20'  # Aktualisiere auf Node.js 20
       
       - name: Install dependencies
         run: |
