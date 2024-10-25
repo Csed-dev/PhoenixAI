@@ -46,7 +46,7 @@ pip3 install -r requirements.txt
    You need to create a `.env` file to store your API key securely. Add the following line to your `.env` file:
 
    ```
-   GOOGLE_API_KEY_QUIZCRAFT=your_google_api_key_here
+   GOOGLE_API_KEY=your_google_api_key_here
    ```
 ### 5. Required Google APIs				
 - Generative Language API
