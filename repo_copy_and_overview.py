@@ -41,39 +41,40 @@ def create_fork():
         forked_repo = repo.create_fork()
         print(f'Fork erstellt: {forked_repo.html_url}')
         return forked_repo.full_name
-    except g.GithubException as e:
-        print(f"Fehler beim Zugriff auf das Repository: {e}")
+    except g.GithubException as error:
+        print(f"Fehler beim Zugriff auf das Repository: {error}")
         return None
 
-forked_repo = create_fork()
+# Fork des Repositories erstellen
+forked_repo_name = create_fork()
 
 def clone_fork():
     """Klonen des Forks, falls das Verzeichnis nicht existiert."""
-    repo_name = forked_repo.split('/')[-1]
+    repo_name = forked_repo_name.split('/')[-1]
     if not os.path.exists(repo_name):
-        subprocess.run(['git', 'clone', f'https://github.com/{forked_repo}.git'], check=True)
-        print(f'Fork {forked_repo} geklont.')
+        subprocess.run(['git', 'clone', f'https://github.com/{forked_repo_name}.git'], check=True)
+        print(f'Fork {forked_repo_name} geklont.')
     else:
         print(f"Verzeichnis '{repo_name}' existiert bereits. Klonen übersprungen.")
 
-def get_project_files(repo_path):
+def get_project_files(repo_directory):
     """Liest nur Textdateien aus dem Repository und gibt sie als Liste von Strings zurück."""
     project_files = []
-    for root, _, files in os.walk(repo_path):
+    for root, _, files in os.walk(repo_directory):
         for file in files:
             file_path = os.path.join(root, file)
-            if file.endswith('.py'):  # Nur Textdateien einlesen
+            if file.endswith('.py'):  # Nur Python-Dateien einlesen
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        file_content = f.read()
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        file_content = file.read()
                         project_files.append(file_content)
-                except (IOError, UnicodeDecodeError) as e:
-                    print(f"Fehler beim Lesen von {file_path}: {e}")
+                except (IOError, UnicodeDecodeError) as read_error:
+                    print(f"Fehler beim Lesen von {file_path}: {read_error}")
     return project_files
 
-def get_project_overview(repo_path):
+def get_project_overview(repo_directory):
     """Sendet die Projektdateien an Gemini und gibt einen Überblick über das Projekt zurück."""
-    code_files = get_project_files(repo_path)
+    code_files = get_project_files(repo_directory)
     if not code_files:
         print("Keine relevanten Dateien gefunden.")
         return
@@ -87,16 +88,16 @@ def get_project_overview(repo_path):
         response = model.generate_content(prompt)
         print("Projektüberblick erhalten:")
         print(response)
-    except Exception as e:  # spezifische Ausnahme wählen, falls möglich
-        print(f"Fehler beim Abrufen des Projektüberblicks: {e}")
+    except RuntimeError as genai_error:  # Verwende eine spezifischere Ausnahme, falls möglich
+        print(f"Fehler beim Abrufen des Projektüberblicks: {genai_error}")
 
 # Hauptskript
 if __name__ == '__main__':
-    if forked_repo:
+    if forked_repo_name:
         clone_fork()
 
     # Pfad zum geklonten Repository
-    repo_path = './' + forked_repo.split('/')[-1]
+    repo_directory = './' + forked_repo_name.split('/')[-1]
 
     # Schritt 2: Projektüberblick erstellen
-    get_project_overview(repo_path)
+    get_project_overview(repo_directory)

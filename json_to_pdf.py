@@ -1,12 +1,23 @@
-import os
+"""
+Dieses Modul konvertiert eine JSON-Datei in einen PDF-Bericht, der die Analyse eines Repositories darstellt.
+"""
+
 import json
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import simpleSplit
 
+
 def json_to_pdf(json_file, output_pdf):
+    """
+    Konvertiert die Analyse eines Repositorys in ein PDF-Format.
+    
+    Args:
+        json_file (str): Pfad zur JSON-Datei mit der Repository-Analyse.
+        output_pdf (str): Pfad, unter dem das erstellte PDF gespeichert wird.
+    """
     # Lade das JSON-Dokument
-    with open(json_file, 'r') as f:
+    with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     # PDF-Erstellung initialisieren
@@ -45,34 +56,44 @@ def json_to_pdf(json_file, output_pdf):
         y_position -= 15
         
         # Zweck der Datei mit Zeilenumbruch
-        purpose_lines = simpleSplit(f"Purpose: {file_data['purpose']}", "Helvetica", 10, width - 80)
+        purpose_lines = simpleSplit(
+            f"Purpose: {file_data['purpose']}", "Helvetica", 10, width - 80
+        )
         for line in purpose_lines:
             c.drawString(60, y_position, line)
             y_position -= 15
         
         # Abhängigkeiten mit Zeilenumbruch
         dependencies = ', '.join(file_data['dependencies'])
-        dep_lines = simpleSplit(f"Dependencies: {dependencies}", "Helvetica", 10, width - 80)
+        dep_lines = simpleSplit(
+            f"Dependencies: {dependencies}", "Helvetica", 10, width - 80
+        )
         for line in dep_lines:
             c.drawString(60, y_position, line)
             y_position -= 15
         
         # Klassen durchgehen
         for cls in file_data.get("classes", []):
-            class_lines = simpleSplit(f"Class: {cls['name']} - {cls['description']}", "Helvetica", 10, width - 100)
+            class_lines = simpleSplit(
+                f"Class: {cls['name']} - {cls['description']}", "Helvetica", 10, width - 100
+            )
             for line in class_lines:
                 c.drawString(80, y_position, line)
                 y_position -= 15
             # Methoden der Klasse
             for method in cls.get("methods", []):
-                method_lines = simpleSplit(f"Method: {method['name']} - {method['description']}", "Helvetica", 10, width - 120)
+                method_lines = simpleSplit(
+                    f"Method: {method['name']} - {method['description']}", "Helvetica", 10, width - 120
+                )
                 for line in method_lines:
                     c.drawString(100, y_position, line)
                     y_position -= 15
 
         # Funktionen durchgehen
         for func in file_data.get("functions", []):
-            func_lines = simpleSplit(f"Function: {func['name']} - {func['description']}", "Helvetica", 10, width - 80)
+            func_lines = simpleSplit(
+                f"Function: {func['name']} - {func['description']}", "Helvetica", 10, width - 80
+            )
             for line in func_lines:
                 c.drawString(60, y_position, line)
                 y_position -= 15
@@ -81,6 +102,7 @@ def json_to_pdf(json_file, output_pdf):
 
     c.save()  # Speichert und schließt das PDF
     print(f"PDF gespeichert als '{output_pdf}'")
+
 
 # Beispielaufruf
 json_to_pdf("repo_analysis.json", "repo_analysis_report.pdf")
