@@ -1,0 +1,90 @@
+{
+    "files": [
+        {
+            "dependencies": [
+                "os",
+                "requests",
+                "json"
+            ],
+            "filename": "Quizcraft/api_interaction.py",
+            "purpose": "Handles interaction with Google Forms API to create and manage forms"
+        },
+        {
+            "dependencies": [
+                "flask",
+                "flask_login",
+                "flask_wtf",
+                "forms",
+                "app_database",
+                "pdf_processing",
+                "create_google_form",
+                "quick_form",
+                "os",
+                "datetime"
+            ],
+            "filename": "Quizcraft/app.py",
+            "purpose": "Main application logic, routing, and user interactions"
+        },
+        {
+            "dependencies": [
+                "flask_login",
+                "flask_sqlalchemy",
+                "os",
+                "datetime",
+                "random"
+            ],
+            "filename": "Quizcraft/app_database.py",
+            "purpose": "Handles database interactions, including user authentication and data storage"
+        },
+        {
+            "dependencies": [
+                "requests",
+                "json",
+                "create_questions",
+                "os"
+            ],
+            "filename": "Quizcraft/create_google_form.py",
+            "purpose": "Creates Google Forms based on provided questions and settings"
+        },
+        {
+            "dependencies": [
+                "random",
+                "os",
+                "json"
+            ],
+            "filename": "Quizcraft/create_questions.py",
+            "purpose": "Generates questions with different difficulty levels and question types"
+        },
+        {
+            "dependencies": [
+                "wtforms",
+                "wtforms.validators"
+            ],
+            "filename": "Quizcraft/forms.py",
+            "purpose": "Defines forms used for user input and data validation"
+        },
+        {
+            "dependencies": [
+                "fpdf",
+                "os",
+                "json"
+            ],
+            "filename": "Quizcraft/pdf_processing.py",
+            "purpose": "Processes and generates PDF documents for quizzes and answer keys"
+        },
+        {
+            "dependencies": [
+                "flask",
+                "flask_wtf",
+                "forms",
+                "os",
+                "json",
+                "create_google_form",
+                "datetime"
+            ],
+            "filename": "Quizcraft/quick_form.py",
+            "purpose": "Provides a streamlined interface for creating simple quizzes quickly"
+        }
+    ],
+    "overview": "Quizcraft is a web application designed to create, manage, and deliver quizzes. It utilizes Google Forms API for quiz creation, a database for user management and data storage, and PDF processing for generating printable materials. Quizcraft offers both quick and advanced creation options, catering to various needs."
+}

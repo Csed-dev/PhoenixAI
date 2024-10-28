@@ -1,5 +1,6 @@
 """
-Dieses Modul analysiert die Abhängigkeiten zwischen Dateien in einem GitHub-Repository.
+Dieses Modul analysiert die Abhängigkeiten zwischen Dateien in einem GitHub-Repository 
+und erstellt ein Graph.
 """
 
 import os

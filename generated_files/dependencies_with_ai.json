@@ -1,0 +1,98 @@
+{
+    "api_interaction.py": {
+        "libraries": [
+            "os",
+            "textwrap",
+            "google",
+            "json"
+        ],
+        "project_files": []
+    },
+    "app.py": {
+        "libraries": [
+            "werkzeug",
+            "googleapiclient",
+            "flask",
+            "flask_wtf",
+            "PyPDF2",
+            "os",
+            "io",
+            "base64",
+            "json"
+        ],
+        "project_files": [
+            "create_google_form",
+            "pdf_processing",
+            "create_questions",
+            "api_interaction",
+            "quick_form",
+            "forms",
+            "app_database"
+        ]
+    },
+    "app_database.py": {
+        "libraries": [
+            "sqlalchemy",
+            "datetime",
+            "json"
+        ],
+        "project_files": []
+    },
+    "create_google_form.py": {
+        "libraries": [
+            "googleapiclient",
+            "sqlalchemy",
+            "google",
+            "flask",
+            "qrcode",
+            "os",
+            "io",
+            "base64"
+        ],
+        "project_files": [
+            "app_database"
+        ]
+    },
+    "create_questions.py": {
+        "libraries": [
+            "dotenv",
+            "os",
+            "google",
+            "json"
+        ],
+        "project_files": [
+            "app_database"
+        ]
+    },
+    "forms.py": {
+        "libraries": [
+            "flask_wtf",
+            "wtforms"
+        ],
+        "project_files": []
+    },
+    "pdf_processing.py": {
+        "libraries": [
+            "pytesseract",
+            "PyPDF2",
+            "pdf2image",
+            "re"
+        ],
+        "project_files": [
+            "app_database"
+        ]
+    },
+    "quick_form.py": {
+        "libraries": [
+            "googleapiclient",
+            "google",
+            "flask",
+            "PyPDF2",
+            "json"
+        ],
+        "project_files": [
+            "pdf_processing",
+            "api_interaction"
+        ]
+    }
+}
