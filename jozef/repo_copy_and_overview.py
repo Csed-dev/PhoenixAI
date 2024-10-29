@@ -1,11 +1,11 @@
 """
-Dieses Modul erstellt einen Fork eines GitHub-Repositories, klont es lokal und analysiert die Projektdateien,
-um einen Überblick über die Projektstruktur zu erhalten.
+Dieses Modul erstellt einen Fork eines GitHub-Repositories, klont es lokal und analysiert 
+die Projektdateien, um einen Überblick über die Projektstruktur zu erhalten.
 """
 
 import os
 import subprocess
-from github import Github
+from github import Github, GithubException
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -20,10 +20,11 @@ g = Github(github_token)
 def configure_genai_api():
     """Konfiguriert die Gemini API mit dem API-Schlüssel."""
     api_key = os.getenv('API_KEY')  # Der API-Key sollte in der .env Datei gesetzt sein
-    
+
     if not api_key:
-        raise ValueError("Der API-Schlüssel ist nicht gesetzt. Bitte setzen Sie die Umgebungsvariable 'API_KEY'.")
-    
+        raise ValueError("""Der API-Schlüssel ist nicht gesetzt.
+            Bitte setzen Sie die Umgebungsvariable 'API_KEY'.""")
+
     # Gemini API konfigurieren
     genai.configure(api_key=api_key)
     return genai.GenerativeModel('gemini-1.5-flash')
@@ -36,12 +37,12 @@ def create_fork():
     try:
         repo = g.get_repo(original_repo)
         print(f"Repository gefunden: {repo.full_name}")
-        
+
         # Fork erstellen
         forked_repo = repo.create_fork()
         print(f'Fork erstellt: {forked_repo.html_url}')
         return forked_repo.full_name
-    except g.GithubException as error:
+    except GithubException as error:
         print(f"Fehler beim Zugriff auf das Repository: {error}")
         return None
 
@@ -57,10 +58,10 @@ def clone_fork():
     else:
         print(f"Verzeichnis '{repo_name}' existiert bereits. Klonen übersprungen.")
 
-def get_project_files(repo_directory):
+def get_project_files(repo_dir):
     """Liest nur Textdateien aus dem Repository und gibt sie als Liste von Strings zurück."""
     project_files = []
-    for root, _, files in os.walk(repo_directory):
+    for root, _, files in os.walk(repo_dir):
         for file in files:
             file_path = os.path.join(root, file)
             if file.endswith('.py'):  # Nur Python-Dateien einlesen
@@ -72,16 +73,17 @@ def get_project_files(repo_directory):
                     print(f"Fehler beim Lesen von {file_path}: {read_error}")
     return project_files
 
-def get_project_overview(repo_directory):
+def get_project_overview(repo_dir):
     """Sendet die Projektdateien an Gemini und gibt einen Überblick über das Projekt zurück."""
-    code_files = get_project_files(repo_directory)
+    code_files = get_project_files(repo_dir)
     if not code_files:
         print("Keine relevanten Dateien gefunden.")
         return
 
     # Erstelle den Prompt für Gemini
     prompt = (
-        f"Hier ist eine Liste von Dateien aus einem Projekt. Erstelle einen kurzen Überblick über das Projekt, "
+        f"""Hier ist eine Liste von Dateien aus einem Projekt.
+            Erstelle einen kurzen Überblick über das Projekt, """
         f"inklusive Hauptfunktionalitäten, Struktur und Zweck. Der Text:\n\n{code_files}\n"
     )
     try:

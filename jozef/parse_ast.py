@@ -39,7 +39,7 @@ def analyze_repo(repo_path):
         "Provide an overview, purpose, and dependencies.\n\n"
         f"{code_files}"
     )
-    
+
     result = model.generate_content(
         prompt,
         generation_config=genai.GenerationConfig(
@@ -47,7 +47,7 @@ def analyze_repo(repo_path):
             response_schema=RepoAnalysis
         ),
     )
-    
+
     response_content = result.candidates[0].content.parts[0].text
     response_data = json.loads(response_content)
     with open("repo_analysis.json", "w", encoding="utf-8") as f:
@@ -69,7 +69,7 @@ def parse_and_show_ast(repo_path):
             print(f"\nAST für Datei: {file_path}")
             with open(file_path, 'r', encoding="utf-8") as file:
                 source_code = file.read()
-            
+
             # Erzeuge den AST des Codes
             tree = ast.parse(source_code)
             ast_json = ast_to_json(tree)
@@ -111,12 +111,12 @@ def main():
     """
     # Pfad zum lokal geklonten Repository (ersetze mit deinem Verzeichnisnamen)
     repo_path = './Quizcraft'
-    
+
     # Schritt 1: Analyse des Repositories und Speichern des Ergebnisses
     print("Starte die Analyse des Repositories mit Gemini...")
     analyze_repo(repo_path)
     print("Analyse abgeschlossen und in 'repo_analysis.json' gespeichert.")
-    
+
     # Schritt 2: AST für jede Datei im Repository erstellen und anzeigen
     print("\nErstelle und zeige den AST für jede Datei an...")
     parse_and_show_ast(repo_path)
