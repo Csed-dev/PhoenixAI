@@ -1,0 +1,15 @@
+paths:
+  cloned_repos: "./cloned_repos"
+  data:
+    analysis_results: "./data/analysis_results"
+    documentation: "./data/documentation"
+    transformed_code: "./data/transformed_code"
+  docs: "./docs"
+  main_script: "./main.py"
+  tests: "./tests"
+  modules:
+    repo_management: "./phoenixai/repo_management/manage_legacy_repo.py"
+    analysis: "./phoenixai/analysis/analyze.py"
+    transformation: "./phoenixai/transformation/transform.py"
+    cicd: "./phoenixai/cicd/cicd.py"
+    documentation: "./phoenixai/documentation/document.py"
