@@ -109,7 +109,7 @@ def save_improved_code(file_path, improved_code):
 # Hauptprogramm
 def main():
     # Datei auswählen
-    file_path = "phoenixai/repo_management/managa_legacy_repo.py"
+    file_path = "phoenixai/repo_management/manage_legacy_repo.py"
     if not os.path.exists(file_path):
         print(f"Datei '{file_path}' nicht gefunden.")
         return
