@@ -1,5 +1,7 @@
 cloned_repos/
-
+data/analysis_results/*
+data/generated_docs/*
+data/tranformed_code/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
