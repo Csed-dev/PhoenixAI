@@ -121,9 +121,10 @@ def select_best_result(scores: List[Tuple[float, int, str]]) -> Tuple[int, str]:
 def extract_pylint_score(pylint_output: str) -> float:
     """Extracts the Pylint score from the output."""
     try:
-        match = re.search(r"Your code has been rated at (-?\d+\.\d+)/10", pylint_output)
-        if match:
-            return float(match.group(1))
+        if match := re.search(
+            r"Your code has been rated at (-?\d+\.\d+)/10", pylint_output
+        ):
+            return float(match[1])
 
         logging.warning("Pylint score could not be extracted. Using default value 0.0.")
         return 0.0
@@ -188,7 +189,7 @@ def build_error_report(errors):
     descriptions = []
     for error in errors:
         description = fetch_error_description_from_db(error["error_code"])
-        description = description if description else "Description not found"
+        description = description or "Description not found"
         descriptions.append(
             f"- {error['error_code']} ({error['message_emitted']}): {description}"
         )
@@ -227,8 +228,9 @@ def iterative_process_with_pylint(file_path, code_content, iterations):
         if not improved_code.strip():
             logging.error("No valid response from LLM in iteration %d. Abort.", i)
             break
-        formatted_code = process_and_validate_code(improved_code, file_path, i)
-        if formatted_code:
+        if formatted_code := process_and_validate_code(
+            improved_code, file_path, i
+        ):
             code_content = formatted_code
             file_path = update_file_path(file_path, i)
         else:
