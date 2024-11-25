@@ -9,9 +9,12 @@ load_dotenv()
 # LLM-Konfiguration
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 if not gemini_api_key:
-    raise ValueError("GEMINI_API_KEY nicht gesetzt. Bitte setzen Sie die Umgebungsvariable.")
+    raise ValueError(
+        "GEMINI_API_KEY nicht gesetzt. Bitte setzen Sie die Umgebungsvariable."
+    )
 genai.configure(api_key=gemini_api_key)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel("gemini-1.5-flash")
+
 
 def generate_initial_prompt(code_content):
     """Erstellt den Basisprompt für das LLM."""
@@ -29,10 +32,6 @@ Zu behebende Probleme:
 """
 
 
-# LLM-Aufruf
-import google.generativeai as genai
-import logging
-
 def call_llm(prompt: str, temperature: float = 0.7) -> str:
     """
     Ruft das LLM (Gemini) mit einem bestimmten Prompt und einer spezifischen Temperatur auf.
@@ -48,7 +47,7 @@ def call_llm(prompt: str, temperature: float = 0.7) -> str:
             generation_config=genai.types.GenerationConfig(
                 # candidate_count=1,  # Eine Ausgabe erzeugen
                 temperature=temperature,
-            )
+            ),
         )
 
         # Generierte Ausgabe extrahieren
@@ -62,32 +61,36 @@ def call_llm(prompt: str, temperature: float = 0.7) -> str:
         logging.error(f"Fehler beim Aufrufen des LLM: {e}")
         return ""
 
+
 # Code trimmen
 def strip_code_start(improved_code):
     """Entfernt Markdown-Markierungen"""
     lines = improved_code.splitlines()
 
     # Entferne ```python oder ``` nur am Anfang des Codes
-    while lines and lines[0].strip() in ('```python', '```'):
+    while lines and lines[0].strip() in ("```python", "```"):
         lines.pop(0)
 
-    return '\n'.join(lines).strip()
+    return "\n".join(lines).strip()
 
 
-
-def strip_code_end(improved_code):
-    """Entfernt unerwünschten Text am Ende des Codes."""
+def strip_code_end(improved_code: str) -> str:
+    """Entfernt alles, was nach der letzten Markdown-Markierung ``` kommt."""
     lines = improved_code.splitlines()
 
-    # End-Index finden
-    end_index = len(lines)
-    for idx, line in enumerate(reversed(lines), 1):
+    # Finde den Index der letzten Markdown-Markierung ```
+    last_markdown_index = None
+    for idx, line in enumerate(reversed(lines)):
         if line.strip() == "```":
-            end_index = len(lines) - idx
-        elif line.strip():
+            last_markdown_index = len(lines) - 1 - idx
             break
 
-    return '\n'.join(lines[:end_index]).strip()
+    # Wenn keine Markdown-Markierung gefunden wurde, bleibt der Code unverändert
+    if last_markdown_index is None:
+        return "\n".join(lines).strip()
+
+    # Schneide alles ab der letzten Markdown-Markierung
+    return "\n".join(lines[:last_markdown_index]).strip()
 
 
 def trim_code(improved_code):
@@ -95,6 +98,7 @@ def trim_code(improved_code):
     code = strip_code_start(improved_code)
     code = strip_code_end(code)
     return code
+
 
 def extract_code_from_response(response_text):
     """
@@ -107,12 +111,12 @@ def extract_code_from_response(response_text):
     code_blocks = re.findall(r"```(?:python)?\n(.*?)```", response_text, re.DOTALL)
     if code_blocks:
         # Wenn mehrere Codeblöcke vorhanden sind, diese kombinieren
-        code = '\n'.join(code_blocks).strip()
+        code = "\n".join(code_blocks).strip()
     else:
         # Falls keine Codeblöcke gefunden wurden, gesamten Text zurückgeben
         code = response_text.strip()
     return code
-    
+
 
 # Code speichern
 def save_code_to_file(file_path, improved_code, iteration):
@@ -121,13 +125,12 @@ def save_code_to_file(file_path, improved_code, iteration):
     base_name, ext = os.path.splitext(file_path)
     if "_improved_" in base_name:
         base_name = base_name.split("_improved_")[0]
-    
+
     # Neuer Dateiname mit Iterationsnummer
     new_file_path = f"{base_name}_improved_{iteration}{ext}"
-    
+
     # Datei schreiben
     with open(new_file_path, "w", encoding="utf-8") as f:
         f.write(improved_code)
-    
-    return new_file_path
 
+    return new_file_path

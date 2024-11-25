@@ -1,11 +1,17 @@
-import random
-from typing import Callable, List, Dict, Any
+"""
+Dieses Modul implementiert die MultiChainComparison-Klasse, die Prompts mit verschiedenen
+Temperaturen an ein LLM sendet und die generierten Antworten vergleicht, um das beste Ergebnis
+auszuwählen.
+"""
+
+from typing import Callable, List, Any
 
 
 class MultiChainComparison:
     """
     Führt den gleichen Prompt mit verschiedenen Temperaturen aus und bewertet die Ergebnisse.
     """
+
     def __init__(self, prompt: str, temperatures: List[float], test_type: str):
         """
         :param prompt: Der Eingabeprompt, der mehrmals ausgeführt wird.
@@ -34,9 +40,10 @@ class MultiChainComparison:
         :return: Das beste Ergebnis.
         """
         if self.test_type not in self.comparison_functions:
-            raise ValueError(f"Keine Vergleichsfunktion für den Testtyp '{self.test_type}' registriert.")
+            raise ValueError(
+                f"Keine Vergleichsfunktion für den Testtyp '{self.test_type}' registriert."
+            )
         return self.comparison_functions[self.test_type](results, temperatures)
-
 
     def run(self, llm_function: Callable[[str, float], Any]) -> Any:
         """
