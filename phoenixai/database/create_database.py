@@ -21,4 +21,4 @@ CREATE TABLE IF NOT EXISTS pylint_test (
 conn.commit()
 conn.close()
 
-print("Die Datenbank wurde erfolgreich erstellt. Die Tabelle für den Pylint-Test enthält Daten.")
+print("Die Datenbank wurde erfolgreich erstellt.")
