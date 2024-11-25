@@ -228,9 +228,7 @@ def iterative_process_with_pylint(file_path, code_content, iterations):
         if not improved_code.strip():
             logging.error("No valid response from LLM in iteration %d. Abort.", i)
             break
-        if formatted_code := process_and_validate_code(
-            improved_code, file_path, i
-        ):
+        if formatted_code := process_and_validate_code(improved_code, file_path, i):
             code_content = formatted_code
             file_path = update_file_path(file_path, i)
         else:

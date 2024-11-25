@@ -50,12 +50,10 @@ def call_llm(prompt: str, temperature: float = 0.7) -> str:
             ),
         )
 
-        # Generierte Ausgabe extrahieren
         if response and response.candidates:
             return response.candidates[0].content.parts[0].text
-        else:
-            logging.error("Keine validen Ergebnisse vom LLM erhalten.")
-            return ""
+        logging.error("Keine validen Ergebnisse vom LLM erhalten.")
+        return ""
 
     except Exception as e:
         logging.error(f"Fehler beim Aufrufen des LLM: {e}")
@@ -78,13 +76,14 @@ def strip_code_end(improved_code: str) -> str:
     """Entfernt alles, was nach der letzten Markdown-Markierung ``` kommt."""
     lines = improved_code.splitlines()
 
-    # Finde den Index der letzten Markdown-Markierung ```
-    last_markdown_index = None
-    for idx, line in enumerate(reversed(lines)):
-        if line.strip() == "```":
-            last_markdown_index = len(lines) - 1 - idx
-            break
-
+    last_markdown_index = next(
+        (
+            len(lines) - 1 - idx
+            for idx, line in enumerate(reversed(lines))
+            if line.strip() == "```"
+        ),
+        None,
+    )
     # Wenn keine Markdown-Markierung gefunden wurde, bleibt der Code unverändert
     if last_markdown_index is None:
         return "\n".join(lines).strip()
@@ -107,15 +106,15 @@ def extract_code_from_response(response_text):
     # falls der code nicht mit ```python beginnt, kann der step übersprüngen werden
     if not response_text.startswith("```python"):
         return response_text.strip()
-    # Regex, um Code zwischen ```python und ``` zu finden
-    code_blocks = re.findall(r"```(?:python)?\n(.*?)```", response_text, re.DOTALL)
-    if code_blocks:
-        # Wenn mehrere Codeblöcke vorhanden sind, diese kombinieren
-        code = "\n".join(code_blocks).strip()
-    else:
-        # Falls keine Codeblöcke gefunden wurden, gesamten Text zurückgeben
-        code = response_text.strip()
-    return code
+    return (
+        "\n".join(code_blocks).strip()
+        if (
+            code_blocks := re.findall(
+                r"```(?:python)?\n(.*?)```", response_text, re.DOTALL
+            )
+        )
+        else response_text.strip()
+    )
 
 
 # Code speichern
