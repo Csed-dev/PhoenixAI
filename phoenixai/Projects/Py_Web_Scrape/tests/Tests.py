@@ -1,11 +1,13 @@
 import unittest
 from unittest.mock import patch
-
 import requests
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
-from main import fetch_url_content, SHOTGUN, get_user_input
+from main import fetch_url_content, SHOTGUN, get_user_input, get_tag_content
+from bs4 import BeautifulSoup
+import pytest
+from unittest.mock import patch
 
 class Tests(unittest.TestCase):
     @patch('main.requests.get')
@@ -45,6 +47,24 @@ class Tests(unittest.TestCase):
         print('Now running test_shotgun_output')
         # Ensure SHOTGUN just prints the ASCII without user input
         SHOTGUN()  # This shouldn't require mocking, as it doesn't use input.
+
+    def test_get_tag_content(self):
+        html = "<html><body><p>Test</p></body></html>"
+        soup = BeautifulSoup(html, 'html.parser')
+        result = get_tag_content(soup, 'p')
+        assert len(result) == 1
+        assert result[0].text == "Test"
+
+    def test_integration_web_scraping(self):
+        url = "https://example.com"
+        html = "<html><body><a href='/test'>Link</a></body></html>"
+        with patch('main.requests.get') as mock_get:
+            mock_get.return_value.content = html.encode()
+            content = fetch_url_content(url)
+            soup = BeautifulSoup(content, 'html.parser')
+            links = get_tag_content(soup, 'a')
+            assert len(links) == 1
+            assert links[0]['href'] == "/test"
 
 
 if __name__ == '__main__':  # pragma: no cover
