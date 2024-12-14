@@ -7,7 +7,7 @@ die Lesbarkeit, Wiederverwendbarkeit und Wartbarkeit des Codes zu verbessern.
 
 import logging
 import os
-from base_prompt_handling import call_llm, extract_code_from_response, save_code_to_file
+from base_prompt_handling import call_llm, save_code_to_file
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,15 +24,15 @@ def generate_modular_prompt(code_content: str) -> str:
             {code_content}
 
             Der folgende Python-Code sollte in wiederverwendbare Module umgewandelt werden. 
-            Jede Funktion sollte, falls möglich
-            nur eine Aufgabe erfüllen. Überprüfe den Code auf Wiederholungen und unnötige Komplexität.
+            Jede Funktion sollte, falls möglich nur eine Aufgabe erfüllen. 
+            Überprüfe den Code auf Wiederholungen und unnötige Komplexität.
             Ziel ist es, die Struktur zu verbessern, um die einzelnen Funktionen besser verstehen zu 
             können und um die Wartbarkeit zu erhöhen
 
             Hinweise:
             1. Jede Funktion oder Klasse sollte klar definierte Aufgaben haben.
             2. Überflüssige Wiederholungen im Code sollten vermieden werden.
-            3. Am Anfang jeder Datei oder Klasse sollte ein beschreibender Docstring vorhanden sein.
+            3. Verändere nicht die eigentliche Semantik des Codes. Die Funktionen sollen genau das selbe Ergebnis liefern.
 
             Gib **nur** den modularisierten Code zurück, ohne zusätzliche Erklärungen oder Kommentare außerhalb des Codes.
             """
@@ -59,7 +59,7 @@ def modularize_code(file_path: str) -> str:
     response = call_llm(prompt)
 
     # Extrahiere und bereinige den Code aus der LLM-Antwort
-    modular_code = extract_code_from_response(response)
+    modular_code = trim_code(response)
 
     if not modular_code.strip():
         logging.error("Das LLM hat keinen validen modularisierten Code zurückgegeben.")
