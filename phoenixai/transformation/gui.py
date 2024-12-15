@@ -1,401 +1,409 @@
+import ast
 import os
 import tkinter as tk
-from tkinter import Listbox, Scrollbar, END, ttk, filedialog
-from tkinter.messagebox import showinfo, showerror
-from refactor import process_refactoring
+from tkinter import END, ttk
+from tkinter.messagebox import showerror, showinfo
 
-import ast
-import astor
-import re
-import time
-import datetime
+from pipeline import Pipeline, action_functions
 
-# Historienstacks für Navigation
 back_history = []
 forward_history = []
+current_directory = os.getcwd()
+selected_file = None
 
-class PipelineStep:
-    def __init__(self, name):
-        self.name = name
-        self.start_time = None
-        self.end_time = None
-        self.outcome = None  # "success" oder "failure"
 
-    def run(self, function, *args, **kwargs):
-        """Führt den Schritt aus und protokolliert die Zeit und das Ergebnis."""
-        self.start_time = datetime.datetime.now()
+def remove_pipeline_step(event, pipeline_tree, pipeline):
+    selected_item = pipeline_tree.selection()
+    if selected_item:
+        # Ermitteln Sie den Index des ausgewählten Elements
         try:
-            function(*args, **kwargs)  # Die tatsächliche Funktion des Schrittes
-            self.outcome = "success"
-        except Exception as e:
-            self.outcome = f"failure: {e}"
-        finally:
-            self.end_time = datetime.datetime.now()
+            step_index = int(selected_item[0]) - 1  # Treeview-IDs beginnen bei 1
+            if 0 <= step_index < len(pipeline.steps):
+                # Schritt aus der Pipeline entfernen
+                del pipeline.steps[step_index]
+                # Treeview aktualisieren
+                pipeline.display_status()
+        except ValueError:
+            showerror("Fehler", "Ungültige Schritt-ID.")
 
-    def get_time_taken(self):
-        """Gibt die benötigte Zeit als String zurück."""
-        if self.start_time and self.end_time:
-            delta = self.end_time - self.start_time
-            return f"{str(delta.seconds)} Sekunden"
-        return "Not completed"
 
-    def get_status(self):
-        """Gibt den aktuellen Status zurück."""
-        return {
-            "Step": self.name,
-            "Outcome": self.outcome or "Running",
-            "Time Taken": self.get_time_taken(),
-            "Timestamp": self.start_time.strftime("%H:%M:%S") if self.start_time else "N/A",
-        }
+def show_pipeline_menu(event, pipeline_tree, pipeline_menu):
+    selected_item = pipeline_tree.identify_row(event.y)
+    if selected_item:
+        pipeline_tree.selection_set(selected_item)
+        pipeline_menu.post(event.x_root, event.y_root)
 
-class Pipeline:
-    def __init__(self, status_label):
-        self.steps = []
-        self.status_label = status_label
-
-    def add_step(self, name, function, *args, **kwargs):
-        """Fügt einen Schritt zur Pipeline hinzu und führt ihn aus."""
-        step = PipelineStep(name)
-        self.steps.append(step)
-        step.run(function, *args, **kwargs)
-        self.display_status()
-
-    def display_status(self):
-        """Aktualisiert die Statusanzeige in der GUI."""
-        status_text = "\n".join([
-            f"Schritt: {step.get_status()['Step']}\n"
-            f"Ergebnis: {step.get_status()['Outcome']}\n"
-            f"Zeit: {step.get_status()['Time Taken']}\n"
-            f"Startzeit: {step.get_status()['Timestamp']}\n"
-            f"{'-'*50}"
-            for step in self.steps
-        ])
-        self.status_label.config(text=status_text)
 
 def list_directory_contents(directory):
     """Listet alle Dateien und Ordner im Verzeichnis auf."""
     contents = []
     for item in os.listdir(directory):
-        # Markiere Ordner mit einem Schrägstrich am Ende
         if os.path.isdir(os.path.join(directory, item)):
             contents.append(f"{item}/")
-        elif item.endswith(".py"):  # Nur Python-Dateien anzeigen
+        elif item.endswith(".py"):
             contents.append(item)
     return contents
 
-def update_directory_list(directory, add_to_history=True):
+
+def update_directory_list(directory, dir_listbox, dir_label, pipeline):
     """Aktualisiert die Liste der Dateien und Ordner in der GUI."""
     global current_directory
-    if add_to_history:
-        back_history.append(current_directory)
-        # Beim Navigieren zu einem neuen Verzeichnis wird der Vorwärts-Stack geleert
-        forward_history.clear()
+    back_history.append(current_directory)
+    forward_history.clear()
     current_directory = directory
     dir_listbox.delete(0, END)
     contents = list_directory_contents(directory)
     for item in contents:
         dir_listbox.insert(END, item)
     dir_label.config(text=f"Aktuelles Verzeichnis: {directory}")
-    # Statusanzeige zurücksetzen
-    status_label.config(text="")
-    if pipeline := getattr(root, 'pipeline', None):
-        pipeline.steps = []
-        pipeline.display_status()
+    pipeline.reset()
+
 
 def extract_functions(file_path):
     """
     Extrahiert alle Funktionen aus einer Python-Datei.
-    
+
     Parameters:
     - file_path (str): Der Pfad zur Python-Datei.
-    
+
     Returns:
     - list of dict: Eine Liste von Dictionaries mit 'name', 'start_line' und 'end_line' für jede Funktion.
     """
     with open(file_path, "r", encoding="utf-8") as f:
         code = f.read()
-    
+
     parsed_ast = ast.parse(code)
     functions = []
-    
+
     for node in parsed_ast.body:
         if isinstance(node, ast.FunctionDef):
             start_line = node.lineno
-            end_line = node.body[-1].end_lineno if hasattr(node.body[-1], "end_lineno") else node.lineno
-            functions.append({
-                'name': node.name,
-                'start_line': start_line,
-                'end_line': end_line
-            })
-    
+            end_line = (
+                node.body[-1].end_lineno
+                if hasattr(node.body[-1], "end_lineno")
+                else node.lineno
+            )
+            functions.append(
+                {"name": node.name, "start_line": start_line, "end_line": end_line}
+            )
     return functions
 
-def show_functions_selection(file_path):
-    """
-    Öffnet ein neues Fenster mit einer Liste von Funktionen und Kontrollkästchen zur Auswahl.
-    
-    Parameters:
-    - file_path (str): Der Pfad zur Python-Datei.
-    """
-    functions = extract_functions(file_path)
-    if not functions:
-        showinfo("Info", "Keine Funktionen in der ausgewählten Datei gefunden.")
-        return
-    
-    # Neues Fenster erstellen
-    selection_window = tk.Toplevel(root)
-    selection_window.title("Funktionen auswählen zur Refaktorisierung")
-    selection_window.geometry("600x400")
-    selection_window.resizable(False, False)
-    
-    # Scrollbar hinzufügen
-    canvas = tk.Canvas(selection_window, borderwidth=0)
-    scrollbar = ttk.Scrollbar(selection_window, orient="vertical", command=canvas.yview)
-    scrollable_frame = ttk.Frame(canvas)
-    
-    scrollable_frame.bind(
-        "<Configure>",
-        lambda e: canvas.configure(
-            scrollregion=canvas.bbox("all")
-        )
+
+def navigate_up(dir_listbox, dir_label, pipeline):
+    """Navigiert ein Verzeichnis nach oben."""
+    global current_directory
+    parent_directory = os.path.dirname(current_directory)
+    if parent_directory != current_directory:  # Verhindert, dass wir über das Wurzelverzeichnis hinausgehen
+        update_directory_list(parent_directory, dir_listbox, dir_label, pipeline)
+    else:
+        showinfo("Info", "Sie befinden sich bereits im Wurzelverzeichnis.")
+
+def navigate_back(dir_listbox, dir_label, pipeline):
+    """Navigiert zum vorherigen Verzeichnis in der Historie."""
+    global back_history, current_directory, forward_history
+    if back_history:
+        forward_history.append(current_directory)
+        previous_directory = back_history.pop()
+        update_directory_list(previous_directory, dir_listbox, dir_label, pipeline)
+    else:
+        showinfo("Info", "Keine vorherigen Verzeichnisse in der Historie.")
+
+def navigate_forward(dir_listbox, dir_label, pipeline):
+    """Navigiert zum nächsten Verzeichnis in der Historie."""
+    global forward_history, current_directory, back_history
+    if forward_history:
+        back_history.append(current_directory)
+        next_directory = forward_history.pop()
+        update_directory_list(next_directory, dir_listbox, dir_label, pipeline)
+    else:
+        showinfo("Info", "Keine weiteren Verzeichnisse in der Historie.")
+
+
+def build_gui():
+    root = tk.Tk()
+    root.title("Python Refactoring Tool")
+    root.geometry("900x700")
+    root.resizable(False, False)
+
+    style = ttk.Style(root)
+    available_themes = style.theme_names()
+    if "vista" in available_themes:
+        style.theme_use("vista")
+    else:
+        style.theme_use("default")
+
+    main_frame = ttk.Frame(root)
+    main_frame.grid(row=0, column=0, sticky="nsew")
+    root.columnconfigure(0, weight=1)
+    root.rowconfigure(0, weight=1)
+    main_frame.columnconfigure(0, weight=1)
+    main_frame.rowconfigure(2, weight=1)
+
+    dir_label = ttk.Label(
+        main_frame,
+        text=f"Aktuelles Verzeichnis: {current_directory}",
+        anchor="w",
+        font=("Helvetica", 12, "bold"),
     )
-    
-    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-    canvas.configure(yscrollcommand=scrollbar.set)
-    
-    canvas.pack(side="left", fill="both", expand=True)
-    scrollbar.pack(side="right", fill="y")
-    
-    # Variablen für Kontrollkästchen
-    var_dict = {}
-    
-    for func in functions:
+    dir_label.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
+
+    frame = ttk.Frame(main_frame)
+    frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
+    frame.columnconfigure(0, weight=1)
+    frame.rowconfigure(0, weight=1)
+
+    scrollbar = ttk.Scrollbar(frame, orient="vertical")
+    scrollbar.grid(row=0, column=1, sticky="ns")
+
+    dir_listbox = tk.Listbox(frame, yscrollcommand=scrollbar.set, font=("Courier", 10))
+    dir_listbox.grid(row=0, column=0, sticky="nsew")
+    scrollbar.config(command=dir_listbox.yview)
+
+    nav_frame = ttk.Frame(main_frame)
+    nav_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(5, 5))
+
+    actions_frame = ttk.LabelFrame(
+        main_frame, text="Aktionen auswählen", padding=(10, 10)
+    )
+    actions_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
+    actions_frame.columnconfigure(0, weight=1)
+
+    actions = [
+        "Add/Improve Docstrings",
+        "Type Annotation Updater",
+        "Sourcery",
+        "Refactor",
+        "Black",
+        "Isort",
+        "Pylint",
+        "Move Imports",
+    ]
+
+    action_vars = {}
+    for action in actions:
         var = tk.BooleanVar()
-        cb = ttk.Checkbutton(scrollable_frame, text=f"{func['name']} (Zeilen {func['start_line']}-{func['end_line']})", variable=var)
-        cb.pack(anchor='w', pady=2, padx=10)
-        var_dict[func['name']] = {
-            'variable': var,
-            'start_line': func['start_line'],
-            'end_line': func['end_line']
-        }
-    
-    def confirm_selection():
-        selected_functions = []
-        selected_line_numbers = []
-        for func in var_dict.values():
-            if func['variable'].get():
-                selected_functions.append(func)
-                selected_line_numbers.extend(range(func['start_line'], func['end_line'] + 1))
-        
-        if not selected_functions:
-            showinfo("Info", "Keine Funktionen ausgewählt.")
-            return
-        
-        selected_actions = []
-        for action, var in action_vars.items():
-            if var.get():
-                selected_actions.append(action)
-        
-        if not selected_actions:
+        cb = ttk.Checkbutton(actions_frame, text=action, variable=var)
+        cb.pack(side="left", padx=5, pady=5)
+        action_vars[action] = var
+
+    pipeline_frame = ttk.LabelFrame(
+        main_frame, text="Pipeline Schritte", padding=(10, 10)
+    )
+    pipeline_frame.grid(row=4, column=0, sticky="ew", padx=10, pady=5)
+    pipeline_frame.columnconfigure(0, weight=1)
+
+    # Korrigierte Spaltennamen: Verwende "Duration" konsistent
+    pipeline_tree = ttk.Treeview(
+        pipeline_frame,
+        columns=("Status", "Aktion", "Datei", "Duration"),
+        show="headings",
+        selectmode="browse",
+    )
+    pipeline_tree.heading("Status", text="Status")
+    pipeline_tree.heading("Aktion", text="Aktion")
+    pipeline_tree.heading("Datei", text="Datei")
+    pipeline_tree.heading("Duration", text="Duration")
+    pipeline_tree.column("Status", width=100, anchor="center")
+    pipeline_tree.column("Aktion", width=200, anchor="w")
+    pipeline_tree.column("Datei", width=400, anchor="w")
+    pipeline_tree.column("Duration", width=100, anchor="center")
+    pipeline_tree.pack(fill="both", expand=True)
+
+    pipeline_scrollbar = ttk.Scrollbar(
+        pipeline_frame, orient="vertical", command=pipeline_tree.yview
+    )
+    pipeline_tree.configure(yscrollcommand=pipeline_scrollbar.set)
+    pipeline_scrollbar.pack(side="right", fill="y")
+
+    pipeline_menu = tk.Menu(root, tearoff=0)
+    pipeline = Pipeline(pipeline_tree)
+
+    pipeline_menu.add_command(
+        label="Schritt entfernen",
+        command=lambda: remove_pipeline_step(None, pipeline_tree, pipeline),
+    )
+
+    def show_pipeline_menu_handler(event):
+        show_pipeline_menu(event, pipeline_tree, pipeline_menu)
+
+    pipeline_tree.bind("<Button-3>", show_pipeline_menu_handler)
+
+    def on_item_double_click(event):
+        """Verarbeitung der Doppelklick-Auswahl eines Eintrags in der Liste."""
+        selection = dir_listbox.curselection()
+        if not selection:
+            return  # Keine Auswahl getroffen
+        selected_item = dir_listbox.get(selection)
+        selected_path = os.path.join(current_directory, selected_item)
+
+        if os.path.isdir(selected_path):
+            update_directory_list(selected_path, dir_listbox, dir_label, pipeline)
+        elif selected_item.endswith(".py"):
+            global selected_file
+            selected_file = selected_path
+            confirm_actions()
+
+    def confirm_actions():
+        """Bestätigt die ausgewählten Aktionen und handelt entsprechend."""
+        chosen_actions = [name for name, var in action_vars.items() if var.get()]
+        if not chosen_actions:
             showinfo("Info", "Keine Aktionen ausgewählt.")
             return
-        
-        pipeline = root.pipeline
-        for action in selected_actions:
-            step_name = action
-            function = action_functions.get(action)
-            if function:
-                pipeline.add_step(step_name, function, file_path)
-        
-        # Startet den Refaktorisierungsprozess
-        pipeline.add_step("Refaktorisierung", process_refactoring, file_path, list(set(selected_line_numbers)))
-        selection_window.destroy()
-    
-    # Bestätigungsbutton
-    confirm_button = ttk.Button(selection_window, text="Refaktorisieren", command=confirm_selection)
-    confirm_button.pack(pady=10)
 
-def on_item_double_click(event):
-    """Verarbeitung der Doppelklick-Auswahl eines Eintrags in der Liste."""
-    selection = dir_listbox.curselection()
-    if not selection:
-        return  # Keine Auswahl getroffen
-    selected_item = dir_listbox.get(selection)
-    selected_path = os.path.join(current_directory, selected_item)
+        if "Refactor" in chosen_actions:
+            # Entferne "Refactor" aus den allgemeinen Aktionen
+            chosen_actions.remove("Refactor")
+            # Füge die nicht-Refactor Aktionen hinzu
+            for action in chosen_actions:
+                function = action_functions.get(action)
+                if function:
+                    pipeline.add_step(action, function, selected_file)
+            # Zeige das Funktionen-Auswahlfenster für Refactor
+            show_functions_selection(
+                selected_file, root, pipeline, action_vars, pipeline_tree
+            )
+        else:
+            # Füge alle Aktionen direkt hinzu
+            for action in chosen_actions:
+                function = action_functions.get(action)
+                if function:
+                    pipeline.add_step(action, function, selected_file)
+            showinfo(
+                "Info", "Die ausgewählten Aktionen wurden der Pipeline hinzugefügt."
+            )
 
-    if os.path.isdir(selected_path):  # Wenn ein Ordner ausgewählt wurde
-        update_directory_list(selected_path)
-    elif selected_item.endswith(".py"):  # Wenn eine Datei ausgewählt wurde
-        status_label.config(text=f"Ausgewählte Datei: {selected_path}")
-        show_functions_selection(selected_path)
+    def show_functions_selection(file_path, root, pipeline, action_vars, pipeline_tree):
+        """
+        Öffnet ein neues Fenster mit einer Liste von Funktionen und Kontrollkästchen zur Auswahl.
 
-def navigate_up():
-    """Navigiert einen Ordner nach oben."""
-    parent_directory = os.path.dirname(current_directory)
-    update_directory_list(parent_directory)
+        Parameters:
+        - file_path (str): Der Pfad zur Python-Datei.
+        """
+        functions = extract_functions(file_path)
+        if not functions:
+            showinfo("Info", "Keine Funktionen in der ausgewählten Datei gefunden.")
+            return
 
-def navigate_back():
-    """Navigiert zum vorherigen Verzeichnis in der Historie."""
-    if not back_history:
-        status_label.config(text="Keine vorherigen Verzeichnisse in der Historie.")
-        return
-    forward_history.append(current_directory)
-    previous_directory = back_history.pop()
-    update_directory_list(previous_directory, add_to_history=False)
+        selection_window = tk.Toplevel(root)
+        selection_window.title("Funktionen auswählen zur Refaktorisierung")
+        selection_window.geometry("600x400")
+        selection_window.resizable(False, False)
 
-def navigate_forward():
-    """Navigiert zum nächsten Verzeichnis in der Historie."""
-    if not forward_history:
-        status_label.config(text="Keine nächsten Verzeichnisse in der Historie.")
-        return
-    back_history.append(current_directory)
-    next_directory = forward_history.pop()
-    update_directory_list(next_directory, add_to_history=False)
+        canvas = tk.Canvas(selection_window, borderwidth=0)
+        scrollbar = ttk.Scrollbar(
+            selection_window, orient="vertical", command=canvas.yview
+        )
+        scrollable_frame = ttk.Frame(canvas)
 
-def on_mouse_button(event):
-    """Verarbeitet die Seitentasten der Maus."""
-    if event.num == 4:  # "Zurück"-Taste
-        navigate_back()
-    elif event.num == 5:  # "Vorwärts"-Taste
-        navigate_forward()
+        scrollable_frame.bind(
+            "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
 
-# GUI erstellen
-root = tk.Tk()
-root.title("Python Refactoring Tool")
-root.geometry("900x700")
-root.resizable(False, False)
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
 
-# Style konfigurieren
-style = ttk.Style(root)
-style.theme_use('clam')
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
-# Startverzeichnis
-current_directory = os.getcwd()
+        var_dict = {}
 
-# Verzeichnis-Anzeige
-dir_label = ttk.Label(root, text=f"Aktuelles Verzeichnis: {current_directory}", anchor="w", font=("Helvetica", 12, "bold"))
-dir_label.pack(fill="x", padx=10, pady=(10, 5))
+        for func in functions:
+            var = tk.BooleanVar()
+            cb = ttk.Checkbutton(
+                scrollable_frame,
+                text=f"{func['name']} (Zeilen {func['start_line']}-{func['end_line']})",
+                variable=var,
+            )
+            cb.pack(anchor="w", pady=2, padx=10)
+            var_dict[func["name"]] = {
+                "variable": var,
+                "start_line": func["start_line"],
+                "end_line": func["end_line"],
+            }
 
-# Datei- und Ordnerliste
-frame = ttk.Frame(root)
-frame.pack(padx=10, pady=5, fill="both", expand=True)
+        def confirm_refactor_selection():
+            """
+            Bestätigt die Auswahl der zu refaktorisierenden Funktionen und fügt Refactor-Schritte hinzu.
+            """
+            selected_functions = [
+                name for name, info in var_dict.items() if info["variable"].get()
+            ]
+            if not selected_functions:
+                showinfo("Info", "Keine Funktionen ausgewählt für Refaktorisierung.")
+                return
 
-scrollbar = ttk.Scrollbar(frame, orient="vertical")
-scrollbar.pack(side="right", fill="y")
+            for func_name in selected_functions:
+                # Hier könntest du zusätzliche Informationen wie Start- und Endzeilen verwenden
+                pipeline.add_step(
+                    "Refactor", action_functions["Refactor"], selected_file
+                )
 
-dir_listbox = tk.Listbox(frame, height=20, width=100, yscrollcommand=scrollbar.set, font=("Courier", 10))
-dir_listbox.pack(side="left", fill="both", expand=True)
-# Bindet den Doppelklick-Event an die neue Handler-Funktion
-dir_listbox.bind("<Double-Button-1>", on_item_double_click)
+            showinfo(
+                "Info",
+                "Die ausgewählten Refactor-Aktionen wurden der Pipeline hinzugefügt.",
+            )
+            selection_window.destroy()
 
-# Bindet die Seitentasten der Maus an die Handler-Funktion
-root.bind_all("<Button-4>", on_mouse_button)  # "Zurück" Taste
-root.bind_all("<Button-5>", on_mouse_button)  # "Vorwärts" Taste
+        confirm_button = ttk.Button(
+            selection_window,
+            text="Refaktorierung bestätigen",
+            command=confirm_refactor_selection,
+        )
+        confirm_button.pack(pady=10)
 
-scrollbar.config(command=dir_listbox.yview)
+    dir_listbox.bind("<Double-Button-1>", lambda event: on_item_double_click(event))
 
-# Navigationsbuttons
-nav_frame = ttk.Frame(root)
-nav_frame.pack(fill="x", padx=10, pady=(5, 5))
+    def navigate_up_button():
+        navigate_up(dir_listbox, dir_label, pipeline)
 
-navigate_up_button = ttk.Button(nav_frame, text="⬆️ Nach oben navigieren", command=navigate_up)
-navigate_up_button.pack(side="left")
+    def navigate_back_button():
+        navigate_back(dir_listbox, dir_label, pipeline)
 
-# Zusätzliche Schaltflächen für Zurück und Vorwärts in der GUI
-navigate_back_button = ttk.Button(nav_frame, text="🔙 Zurück", command=navigate_back)
-navigate_back_button.pack(side="left", padx=(10, 0))
+    def navigate_forward_button():
+        navigate_forward(dir_listbox, dir_label, pipeline)
 
-navigate_forward_button = ttk.Button(nav_frame, text="🔜 Vorwärts", command=navigate_forward)
-navigate_forward_button.pack(side="left", padx=(5, 0))
+    navigate_up_btn = ttk.Button(
+        nav_frame, text="⬆️ Nach oben navigieren", command=navigate_up_button
+    )
+    navigate_up_btn.pack(side="left")
 
-# Auswahlmöglichkeiten
-actions_frame = ttk.LabelFrame(root, text="Aktionen auswählen", padding=(10, 10))
-actions_frame.pack(fill="x", padx=10, pady=5)
+    navigate_back_btn = ttk.Button(
+        nav_frame, text="🔙 Zurück", command=navigate_back_button
+    )
+    navigate_back_btn.pack(side="left", padx=(10, 0))
 
-actions = [
-    "Pylint",
-    "Black",
-    "Isort",
-    "Move Imports",
-    "Refactor",
-    "Multi Chain Comparison",
-    "Add/Improve Docstrings",
-    "Sourcery",
-    "SonarQube",
-    "Custom Prompt"
-]
+    navigate_forward_btn = ttk.Button(
+        nav_frame, text="🔜 Vorwärts", command=navigate_forward_button
+    )
+    navigate_forward_btn.pack(side="left", padx=(5, 0))
 
-action_vars = {}
-for action in actions:
-    var = tk.BooleanVar()
-    cb = ttk.Checkbutton(actions_frame, text=action, variable=var)
-    cb.pack(side="left", padx=5, pady=5)
-    action_vars[action] = var
+    def mouse_button_handler(event):
+        on_mouse_button(event, dir_listbox, pipeline)
 
-# Aktionen Funktionen (Platzhalter)
-def run_pylint(file_path):
-    # Implementiere Pylint-Ausführung
-    time.sleep(1)
+    def on_mouse_button(event, dir_listbox, pipeline):
+        """Verarbeitet die Seitentasten der Maus."""
+        if event.num == 4:
+            navigate_back(dir_listbox, dir_label, pipeline)
+        elif event.num == 5:
+            navigate_forward(dir_listbox, dir_label, pipeline)
 
-def run_sonarqube(file_path):
-    # Implementiere SonarQube-Ausführung
-    time.sleep(1)
+    def run_next_step(pipeline):
+        """Führt den nächsten Schritt der Pipeline aus."""
+        pipeline.run_next_step()
 
-def run_black(file_path):
-    # Implementiere Black-Ausführung
-    time.sleep(1)
+    def run_next_step_button():
+        run_next_step(pipeline)
 
-def run_isort(file_path):
-    # Implementiere Isort-Ausführung
-    time.sleep(1)
+    start_button = ttk.Button(main_frame, text="Weiter", command=run_next_step_button)
+    start_button.grid(row=5, column=0, sticky="e", padx=10, pady=10)
 
-def move_imports(file_path):
-    # Implementiere Move Imports-Ausführung
-    time.sleep(1)
+    # Kontextmenü zum Entfernen von Schritten
+    def context_menu_handler(event):
+        show_pipeline_menu_handler(event)
 
-def run_refactor(file_path):
-    # Implementiere Refactor-Ausführung
-    time.sleep(1)
+    pipeline_tree.bind("<Button-3>", context_menu_handler)
 
-def multi_chain_comparison(file_path):
-    # Implementiere Multi Chain Comparison-Ausführung
-    time.sleep(1)
+    # Verzeichnis initial laden ohne zur Historie hinzuzufügen
+    update_directory_list(current_directory, dir_listbox, dir_label, pipeline)
 
-def add_improve_docstrings(file_path):
-    # Implementiere Add/Improve Docstrings-Ausführung
-    time.sleep(1)
-
-def run_sourcery(file_path):
-    # Implementiere Sourcery-Ausführung
-    time.sleep(1)
-
-def custom_prompt(file_path):
-    # Implementiere Custom Prompt-Ausführung
-    time.sleep(1)
-
-action_functions = {
-    "Pylint": run_pylint,
-    "SonarQube": run_sonarqube,
-    "Black": run_black,
-    "Isort": run_isort,
-    "Move Imports": move_imports,
-    "Refactor": run_refactor,
-    "Multi Chain Comparison": multi_chain_comparison,
-    "Add/Improve Docstrings": add_improve_docstrings,
-    "Sourcery": run_sourcery,
-    "Custom Prompt": custom_prompt
-}
-
-# Statusanzeige (neues Label am unteren Ende der GUI)
-status_label = ttk.Label(root, text="", anchor="w", foreground="blue", font=("Helvetica", 10))
-status_label.pack(fill="x", padx=10, pady=(5, 10))
-
-# Pipeline initialisieren
-pipeline = Pipeline(status_label)
-root.pipeline = pipeline
-
-# Verzeichnis initial laden ohne zur Historie hinzuzufügen
-update_directory_list(current_directory, add_to_history=False)
-
-# Hauptschleife starten
-root.mainloop()
+    return root

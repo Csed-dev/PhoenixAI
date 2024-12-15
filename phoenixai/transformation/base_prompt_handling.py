@@ -1,8 +1,8 @@
+import ast
 import logging
 import os
 import subprocess
 from pathlib import Path
-import ast
 
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -190,7 +190,7 @@ def format_file_with_black(file_path):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        print(f"[Black ]Die Datei {file.resolve()} wurde erfolgreich formatiert.")
+        print(f"[Black] Die Datei {file.resolve()} wurde erfolgreich formatiert.")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(
             f"""Fehler beim Formatieren der Datei mit Black: {file.resolve()}.

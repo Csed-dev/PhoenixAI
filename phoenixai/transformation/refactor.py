@@ -139,35 +139,41 @@ def replace_function_in_code(lines, start_line, end_line, refactored_function):
 
 def process_refactoring(file_path, line_numbers):
     """Verarbeitet die Refaktorisierung der Funktionen an den angegebenen Zeilennummern."""
-    original_code = read_file(file_path)
-    lines = original_code.splitlines()
+    try:
+        original_code = read_file(file_path)
+        lines = original_code.splitlines()
 
-    # Sortiere Zeilennummern absteigend, um Änderungen rückwärts vorzunehmen
-    sorted_line_numbers = sorted(line_numbers, reverse=True)
+        # Sortiere Zeilennummern absteigend, um Änderungen rückwärts vorzunehmen
+        sorted_line_numbers = sorted(line_numbers, reverse=True)
 
-    for line_number in sorted_line_numbers:
-        # Extrahiere die Funktion und ihre Position
-        function_code, start_line, end_line = extract_function_by_line(file_path, line_number)
+        for line_number in sorted_line_numbers:
+            print(f"[Refactor] Bearbeite Funktion in Zeile: {line_number}")
+            # Extrahiere die Funktion und ihre Position
+            function_code, start_line, end_line = extract_function_by_line(file_path, line_number)
+            print(f"[Refactor] Funktion extrahiert: {function_code}")
 
-        # Generiere den Prompt und erhalte den refaktorierten Code
-        prompt = generate_refactoring_prompt(function_code)
-        refactored_code = call_llm(prompt)
-        trimmed_refactored_code = trim_code(refactored_code)
+            # Generiere den Prompt und erhalte den refaktorierten Code
+            prompt = generate_refactoring_prompt([function_code])
+            refactored_code = call_llm(prompt)
+            print(f"[Refactor] LLM Antwort erhalten:\n{refactored_code}")
 
-        # Aktualisiere die Zeilen dynamisch
-        lines = replace_function_in_code(lines, start_line, end_line, trimmed_refactored_code)
+            # Trim LLM-Antwort und validiere
+            trimmed_refactored_code = trim_code(refactored_code)
+            try:
+                ast.parse(trimmed_refactored_code)
+            except SyntaxError as e:
+                raise RuntimeError(f"[Refactor] Syntaxfehler im LLM-Code: {e}")
 
-        # Speichere den Code nach jeder Refaktorisierung
+            # Aktualisiere die Zeilen dynamisch
+            lines = replace_function_in_code(lines, start_line, end_line, trimmed_refactored_code)
+            print(f"[Refactor] Funktion aktualisiert in Zeilen {start_line}-{end_line}")
+
+        # Speichere den Code nach der Refaktorisierung
         updated_code = "\n".join(lines)
         save_code_to_file(file_path, updated_code)
+        print(f"[Refactor] Refaktorisierung abgeschlossen und gespeichert: {file_path}")
 
-        # Berechne die Verschiebung der Zeilen
-        refactored_lines_count = trimmed_refactored_code.count("\n") + 1
-        original_lines_count = end_line - start_line + 1
-        line_shift = refactored_lines_count - original_lines_count
-
-        # Aktualisiere alle verbleibenden Zeilennummern
-        line_numbers = [
-            ln if ln <= line_number else ln + line_shift
-            for ln in line_numbers
-        ]
+    except ValueError as e:
+        print(f"[Refactor] Fehler beim Verarbeiten der Datei: {e}")
+    except Exception as e:
+        print(f"[Refactor] Unerwarteter Fehler: {e}")
