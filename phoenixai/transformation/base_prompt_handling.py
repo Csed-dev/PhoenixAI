@@ -1,26 +1,64 @@
+"""
+This module provides functions to improve Python code using a large language model (LLM).
+
+It reads Python code from a file, sends it to the LLM for improvement,
+and saves the improved code back to a file.  The module also includes
+functions for formatting the code with Black and sorting imports with isort.
+"""
 import logging
 import os
-import re
 import subprocess
 from pathlib import Path
-
 import google.generativeai as genai
 from dotenv import load_dotenv
 
 
-def load_llm_model(model_name: str = "gemini-1.5-flash"):
+def extract_code_for_llm(file_path):
+    """Reads Python code from a file.
+
+Args:
+    file_path (str): The path to the Python file.
+
+Returns:
+    str: The content of the file.
+
+Raises:
+    FileNotFoundError: If the file does not exist."""
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f'Die Datei {file_path} existiert nicht.')
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def load_llm_model(model_name: str='gemini-1.5-flash'):
+    """Loads the specified LLM model.
+
+Args:
+    model_name (str, optional): The name of the LLM model to load. Defaults to "gemini-1.5-flash".
+
+Returns:
+    google.generativeai.GenerativeModel: The loaded LLM model.
+
+Raises:
+    ValueError: If the GEMINI_API_KEY environment variable is not set."""
     load_dotenv()
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    gemini_api_key = os.getenv('GEMINI_API_KEY')
     if not gemini_api_key:
         raise ValueError(
-            "GEMINI_API_KEY nicht gesetzt. Bitte setzen Sie die Umgebungsvariable."
-        )
+            'GEMINI_API_KEY nicht gesetzt. Bitte setzen Sie die Umgebungsvariable.'
+            )
     genai.configure(api_key=gemini_api_key)
     return genai.GenerativeModel(model_name)
 
 
 def generate_initial_prompt(code_content):
-    """Erstellt den Basisprompt für das LLM."""
+    """Generates the initial prompt for the LLM.
+
+Args:
+    code_content (str): The Python code to be improved.
+
+Returns:
+    str: The initial prompt for the LLM."""
     return f"""
 Code:
 
@@ -35,168 +73,123 @@ Zu behebende Probleme:
 """
 
 
-def call_llm(prompt: str, temperature: float = 0.7) -> str:
-    """
-    Ruft das LLM (Gemini) mit einem bestimmten Prompt und einer spezifischen Temperatur auf.
+def call_llm(prompt: str, temperature: float=0.7) ->str:
+    """Calls the LLM (Gemini) with a given prompt and temperature.
 
-    :param prompt: Der Eingabeprompt für das LLM.
-    :param temperature: Die Kreativität des LLMs (Standard: 0.7).
-    :return: Die generierte Ausgabe des LLMs.
-    """
+Args:
+    prompt (str): The input prompt for the LLM.
+    temperature (float, optional): The creativity of the LLM. Defaults to 0.7.
+
+Returns:
+    str: The generated output of the LLM."""
     try:
-        # Anfrage senden
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                # candidate_count=1,  # Eine Ausgabe erzeugen
-                temperature=temperature,
-            ),
-        )
-
+        model = load_llm_model()
+        response = model.generate_content(prompt, generation_config=genai.
+            types.GenerationConfig(temperature=temperature))
         if response and response.candidates:
             return response.candidates[0].content.parts[0].text
-        logging.error("Keine validen Ergebnisse vom LLM erhalten.")
-        return ""
-
+        logging.error('Keine validen Ergebnisse vom LLM erhalten.')
+        return ''
     except Exception as e:
-        logging.error(f"Fehler beim Aufrufen des LLM: {e}")
-        return ""
+        logging.error(f'Fehler beim Aufrufen des LLM: {e}')
+        return ''
 
 
 def _strip_code_start(improved_code):
-    """Entfernt Markdown-Markierungen"""
+    """Removes Markdown markers from the beginning of the code."""
     lines = improved_code.splitlines()
-
-    # Entferne ```python oder ``` nur am Anfang des Codes
-    while lines and lines[0].strip() in ("```python", "```"):
+    while lines and lines[0].strip() in ('```python', '```'):
         lines.pop(0)
-
-    return "\n".join(lines).strip()
+    return '\n'.join(lines).strip()
 
 
 def _strip_code_end(improved_code):
-    """Entfernt alles, was nach der letzten Markdown-Markierung ``` kommt."""
+    """Removes everything after the last Markdown marker ```."""
     lines = improved_code.splitlines()
-
-    last_markdown_index = next(
-        (
-            len(lines) - 1 - idx
-            for idx, line in enumerate(reversed(lines))
-            if line.strip() == "```"
-        ),
-        None,
-    )
-    # Wenn keine Markdown-Markierung gefunden wurde, bleibt der Code unverändert
+    last_markdown_index = next((len(lines) - 1 - idx for idx, line in
+        enumerate(reversed(lines)) if line.strip() == '```'), None)
     if last_markdown_index is None:
-        return "\n".join(lines).strip()
-
-    # Schneide alles ab der letzten Markdown-Markierung
-    return "\n".join(lines[:last_markdown_index]).strip()
+        return '\n'.join(lines).strip()
+    return '\n'.join(lines[:last_markdown_index]).strip()
 
 
 def trim_code(improved_code):
-    """Kombiniert die beiden Strip-Funktionen, um den Code vollständig zu trimmen."""
+    """Combines the two strip functions to completely trim the code."""
     code = _strip_code_start(improved_code)
     code = _strip_code_end(code)
     return code
-  
+
 
 def save_code_to_file(file_path, improved_code, iteration=None):
-    """
-    Speichert den verbesserten Code in einem festgelegten Ordner.
-    
-    Parameters:
-    - file_path (str): Der Pfad zur Originaldatei.
-    - improved_code (str): Der verbesserte Code, der gespeichert werden soll.
-    - iteration (int, optional): Die Iterationsnummer. Wenn nicht angegeben, wird kein Suffix hinzugefügt.
-    
-    Returns:
-    - str: Der Pfad zur gespeicherten Datei.
-    """
-    # Zielordner definieren
-    output_dir = os.path.join("phoenixai", "transformation", "improved_codes")
-    os.makedirs(output_dir, exist_ok=True)  # Ordner erstellen, falls er nicht existiert
+    """Saves the improved code to a file.
 
-    # Originaldateiname ohne bereits existierende Suffixe "_improved_X"
-    base_name, ext = os.path.splitext(os.path.basename(file_path))
-    if "_improved_" in base_name:
-        base_name = base_name.split("_improved_")[0]
+Args:
+    file_path (str): The path to the original file.
+    improved_code (str): The improved code to be saved.
+    iteration (int, optional): The iteration number. If provided, a new file is created.
 
-    # Neuer Dateiname mit oder ohne Iterationsnummer im Zielordner
+Returns:
+    str: The path to the saved file."""
     if iteration is not None:
-        new_file_name = f"{base_name}_improved_{iteration}{ext}"
+        base_name, ext = os.path.splitext(file_path)
+        new_file_path = f'{base_name}_improved_{iteration}{ext}'
     else:
-        new_file_name = f"{base_name}_improved{ext}"
-
-    new_file_path = os.path.join(output_dir, new_file_name)
-
-    # Datei schreiben
-    with open(new_file_path, "w", encoding="utf-8") as f:
+        new_file_path = file_path
+    with open(new_file_path, 'w', encoding='utf-8') as f:
         f.write(improved_code)
-
+    print(f'[Debug] Code gespeichert unter: {new_file_path}')
     return new_file_path
 
 
-
 def format_file_with_black(file_path):
-    """
-    Formatiert die angegebene Python-Datei mit Black.
+    """Formats the given Python file using Black.
 
-    :param file_path: Der Pfad zur Datei, die formatiert werden soll.
+Args:
+    file_path (str): The path to the file to be formatted.
 
-    :raises FileNotFoundError: Wenn die Datei nicht existiert.
-    :raises RuntimeError: Wenn die Formatierung mit Black fehlschlägt.
-    """
+Raises:
+    FileNotFoundError: If the file does not exist.
+    RuntimeError: If formatting with Black fails."""
     file = Path(file_path)
     if not file.is_file():
         raise FileNotFoundError(
-            f"Die angegebene Datei existiert nicht: {file.resolve()}"
-        )
-
+            f'Die angegebene Datei existiert nicht: {file.resolve()}')
     try:
-        # Black auf die Datei anwenden
-        subprocess.run(
-            ["black", str(file)],
-            check=True,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        print(f"Die Datei {file.resolve()} wurde erfolgreich mit Black formatiert.")
+        subprocess.run(['black', str(file)], check=True, text=True, stdout=
+            subprocess.PIPE, stderr=subprocess.PIPE)
+        print(
+            f'Die Datei {file.resolve()} wurde erfolgreich mit Black formatiert.'
+            )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(
-            f"Fehler beim Formatieren der Datei mit Black: {file.resolve()}.\n"
-            f"Black-Ausgabe:\n{e.stderr}"
-        ) from e
+            f"""Fehler beim Formatieren der Datei mit Black: {file.resolve()}.
+Black-Ausgabe:
+{e.stderr}"""
+            ) from e
 
 
 def apply_isort_to_file(file_path):
-    """
-    Wendet isort auf die angegebene Datei an, um die Importe zu sortieren.
+    """Applies isort to the given file to sort imports.
 
-    :param file_path: Der Pfad zur Datei, die formatiert werden soll.
+Args:
+    file_path (str): The path to the file to be formatted.
 
-    :raises FileNotFoundError: Wenn die Datei nicht existiert.
-    :raises RuntimeError: Wenn das Sortieren mit isort fehlschlägt.
-    """
+Raises:
+    FileNotFoundError: If the file does not exist.
+    RuntimeError: If sorting with isort fails."""
     file = Path(file_path)
     if not file.is_file():
         raise FileNotFoundError(
-            f"Die angegebene Datei existiert nicht: {file.resolve()}"
-        )
-
+            f'Die angegebene Datei existiert nicht: {file.resolve()}')
     try:
-        # isort auf die Datei anwenden
-        subprocess.run(
-            ["isort", str(file)],
-            check=True,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        print(f"Die Datei {file.resolve()} wurde erfolgreich mit isort bearbeitet.")
+        subprocess.run(['isort', str(file)], check=True, text=True, stdout=
+            subprocess.PIPE, stderr=subprocess.PIPE)
+        print(
+            f'Die Datei {file.resolve()} wurde erfolgreich mit isort bearbeitet.'
+            )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(
-            f"Fehler beim Anwenden von isort auf die Datei: {file.resolve()}.\n"
-            f"isort-Ausgabe:\n{e.stderr}"
-        ) from e
+            f"""Fehler beim Anwenden von isort auf die Datei: {file.resolve()}.
+isort-Ausgabe:
+{e.stderr}"""
+            ) from e
