@@ -171,12 +171,3 @@ def process_refactoring(file_path, line_numbers):
             ln if ln <= line_number else ln + line_shift
             for ln in line_numbers
         ]
-
-
-
-if __name__ == "__main__":
-    file_to_process = "C:\\Users\\Anwender\\PycharmProjects\\PhoenixAI\\phoenixai\\test.py"
-    lines = input("Zeilennummern der Funktionen angeben (durch Komma getrennt): ")
-    line_numbers = list(map(int, lines.split(",")))
-
-    process_refactoring(file_to_process, line_numbers)
