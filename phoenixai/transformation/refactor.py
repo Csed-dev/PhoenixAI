@@ -1,31 +1,16 @@
 import ast
-import os
 import re
 
 import astor
-import google.generativeai as genai
-from base_prompt_handling import save_code_to_file, trim_code
-from dotenv import load_dotenv
-
-# LLM-Konfiguration
-load_dotenv()
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-if not gemini_api_key:
-    raise ValueError(
-        "GEMINI_API_KEY nicht gesetzt. Bitte setzen Sie die Umgebungsvariable."
-    )
-
-genai.configure(api_key=gemini_api_key)
-model = genai.GenerativeModel("gemini-1.5-flash")
+from base_prompt_handling import save_code_to_file, trim_code,parse_ast, call_llm, read_file
 
 
-def extract_functions_by_lines(file_path, line_numbers):
-    """Extrahiert Funktionen basierend auf Zeilennummern."""
+def extract_function_by_line(file_path, line_number):
+    """Extrahiert eine Funktion basierend auf einer Zeilennummer."""
     with open(file_path, "r", encoding="utf-8") as f:
         code = f.read()
 
     parsed_ast = ast.parse(code)
-    functions = []
 
     for node in parsed_ast.body:
         if isinstance(node, ast.FunctionDef):
@@ -35,12 +20,10 @@ def extract_functions_by_lines(file_path, line_numbers):
                 if hasattr(node.body[-1], "end_lineno")
                 else start_line
             )
-            if any(start_line <= line <= end_line for line in line_numbers):
-                functions.append(astor.to_source(node).strip())
+            if start_line <= line_number <= end_line:
+                return astor.to_source(node).strip(), start_line, end_line
 
-    if not functions:
-        raise ValueError("Keine Funktionen in den angegebenen Zeilen gefunden.")
-    return functions
+    raise ValueError(f"Keine Funktion in der Zeile {line_number} gefunden.")
 
 
 def generate_refactoring_prompt(functions):
@@ -60,61 +43,16 @@ def generate_refactoring_prompt(functions):
             können und um die Wartbarkeit zu erhöhen 
             Antworte nur mit dem refaktorierten Code.
 
+
+
+
             Hinweise:
             1. Jede Funktion oder Klasse sollte klar definierte Aufgaben haben.
             2. Überflüssige Wiederholungen im Code sollten vermieden werden.
             3. Verändere nicht die eigentliche Semantik des Codes. Die Funktionen sollen genau das selbe Ergebnis liefern.
 
             Gib **nur** den modularisierten Code zurück, ohne zusätzliche Erklärungen oder Kommentare außerhalb des Codes.
-    """
-
-
-def call_llm_for_refactoring(prompt):
-    """Ruft das LLM auf, um Code zu refaktorisieren."""
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(temperature=0.7),
-        )
-        if response and response.candidates:
-            return response.candidates[0].content.parts[0].text
-        else:
-            raise ValueError("Keine Antwort vom LLM erhalten.")
-    except Exception as e:
-        raise RuntimeError(f"Fehler beim LLM-Aufruf: {e}") from e
-
-
-def read_original_code(file_path):
-    """
-    Liest den Originalcode aus der angegebenen Datei.
-
-    Parameters:
-    - file_path (str): Der Pfad zur Originaldatei.
-
-    Returns:
-    - str: Der Inhalt der Originaldatei.
-    """
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
-    except IOError as e:
-        raise IOError(f"Fehler beim Lesen der Datei '{file_path}': {e}") from e
-
-
-def parse_ast(original_code):
-    """
-    Parst den Originalcode und gibt den AST zurück.
-
-    Parameters:
-    - original_code (str): Der Inhalt des Originalcodes.
-
-    Returns:
-    - ast.AST: Der geparste Abstract Syntax Tree (AST) des Codes.
-    """
-    try:
-        return ast.parse(original_code)
-    except SyntaxError as e:
-        raise SyntaxError(f"Syntaxfehler beim Parsen der Datei: {e}") from e
+"""
 
 
 def identify_functions_to_remove(parsed_ast, line_numbers):
@@ -157,61 +95,88 @@ def remove_functions_from_code(lines, lines_to_delete):
     return [line for idx, line in enumerate(lines) if idx not in lines_to_delete]
 
 
-def add_refactored_functions(lines, refactored_functions, functions_sorted):
+def add_refactored_functions(lines, refactored_functions):
     """
     Fügt die refaktorierten Funktionen zum Code hinzu.
 
     Parameters:
     - lines (list of str): Die verbleibenden Zeilen des Codes.
     - refactored_functions (list of str): Eine Liste der refaktorierten Funktionsdefinitionen als Strings.
-    - functions_sorted (list of dict): Die Liste der Funktionen, sortiert nach start_line absteigend.
 
     Returns:
-    - list of str: Die aktualisierten Zeilen des Codes.
+    - str: Der vollständige refaktorierte Code als String.
     """
-    for func, refactored in zip(functions_sorted, refactored_functions):
-        start = func['start_line'] - 1
-        end = func['end_line']
-        refactored_lines = refactored.splitlines()
-        lines[start:end] = refactored_lines
-    return lines
+    return "\n".join(lines) + "\n\n" + "\n\n".join(refactored_functions)
 
 
 def save_refactored_code(file_path, refactored_functions, line_numbers):
-    """Speichert den refaktorierten Code direkt in der Originaldatei."""
-    original_code = read_original_code(file_path)
+    """
+    Speichert den refaktorierten Code in einer neuen Datei.
+
+    Parameters:
+    - file_path (str): Der Pfad zur Originaldatei.
+    - refactored_functions (list of str): Eine Liste der refaktorierten Funktionsdefinitionen als Strings.
+    - line_numbers (list of int): Die Zeilennummern der Funktionen, die refaktoriert wurden.
+
+    Returns:
+    - str: Der Pfad zur gespeicherten refaktorierten Datei.
+    """
+    original_code = read_file(file_path)
     parsed_ast = parse_ast(original_code)
     lines = original_code.splitlines()
-    functions = extract_functions_by_lines(file_path, line_numbers)
-    functions_sorted = sorted(functions, key=lambda x: x['start_line'], reverse=True)
-    refactored_functions_sorted = sorted(refactored_functions, key=lambda x: functions[refactored_functions.index(x)]['start_line'], reverse=True)
-    updated_lines = add_refactored_functions(lines, refactored_functions, functions_sorted)
+    lines_to_delete = identify_functions_to_remove(parsed_ast, line_numbers)
+    updated_lines = remove_functions_from_code(lines, lines_to_delete)
+    refactored_code = add_refactored_functions(updated_lines, refactored_functions)
+    new_file_path = save_code_to_file(file_path, refactored_code)
+    print(f"Der refaktorierte Code wurde in der Datei gespeichert: {new_file_path}")
+    return new_file_path
 
-    refactored_code = "\n".join(updated_lines)
 
-    # Speichere den refaktorierten Code direkt in der Originaldatei
-    try:
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(refactored_code)
-    except IOError as e:
-        raise IOError(f"Fehler beim Schreiben der Datei '{file_path}': {e}") from e
-
-    print(f"Die Datei wurde erfolgreich refaktoriert und überschrieben: {file_path}")
-    return file_path
+def replace_function_in_code(lines, start_line, end_line, refactored_function):
+    """Ersetzt die ursprüngliche Funktion durch die refaktorierte Version."""
+    return lines[:start_line - 1] + [refactored_function] + lines[end_line:]
 
 
 def process_refactoring(file_path, line_numbers):
-    """Kompletter Prozess zur Refaktorisierung von Funktionen."""
-    try:
-        functions = extract_functions_by_lines(file_path, line_numbers)
-        prompt = generate_refactoring_prompt(functions)
-        refactored_code = call_llm_for_refactoring(prompt)
+    """Verarbeitet die Refaktorisierung der Funktionen an den angegebenen Zeilennummern."""
+    original_code = read_file(file_path)
+    lines = original_code.splitlines()
+
+    # Sortiere Zeilennummern absteigend, um Änderungen rückwärts vorzunehmen
+    sorted_line_numbers = sorted(line_numbers, reverse=True)
+
+    for line_number in sorted_line_numbers:
+        # Extrahiere die Funktion und ihre Position
+        function_code, start_line, end_line = extract_function_by_line(file_path, line_number)
+
+        # Generiere den Prompt und erhalte den refaktorierten Code
+        prompt = generate_refactoring_prompt(function_code)
+        refactored_code = call_llm(prompt)
         trimmed_refactored_code = trim_code(refactored_code)
 
-        # Extrahiere die refaktorierten Funktionen
-        refactored_functions = [
-            f.strip() for f in re.split(r"\n\s*\n", trimmed_refactored_code) if f.strip()
+        # Aktualisiere die Zeilen dynamisch
+        lines = replace_function_in_code(lines, start_line, end_line, trimmed_refactored_code)
+
+        # Speichere den Code nach jeder Refaktorisierung
+        updated_code = "\n".join(lines)
+        save_code_to_file(file_path, updated_code)
+
+        # Berechne die Verschiebung der Zeilen
+        refactored_lines_count = trimmed_refactored_code.count("\n") + 1
+        original_lines_count = end_line - start_line + 1
+        line_shift = refactored_lines_count - original_lines_count
+
+        # Aktualisiere alle verbleibenden Zeilennummern
+        line_numbers = [
+            ln if ln <= line_number else ln + line_shift
+            for ln in line_numbers
         ]
-        return save_refactored_code(file_path, refactored_functions, line_numbers)
-    except Exception as e:
-        raise RuntimeError(f"Fehler während der Refaktorisierung: {e}") from e
+
+
+
+if __name__ == "__main__":
+    file_to_process = "C:\\Users\\Anwender\\PycharmProjects\\PhoenixAI\\phoenixai\\test.py"
+    lines = input("Zeilennummern der Funktionen angeben (durch Komma getrennt): ")
+    line_numbers = list(map(int, lines.split(",")))
+
+    process_refactoring(file_to_process, line_numbers)

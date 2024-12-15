@@ -2,6 +2,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
+import ast
 
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -12,6 +13,22 @@ It reads Python code from a file, sends it to the LLM for improvement,
 and saves the improved code back to a file.  The module also includes
 functions for formatting the code with Black and sorting imports with isort.
 """
+
+
+def parse_ast(original_code):
+    """
+    Parst den Originalcode und gibt den AST zurück.
+
+    Parameters:
+    - original_code (str): Der Inhalt des Originalcodes.
+
+    Returns:
+    - ast.AST: Der geparste Abstract Syntax Tree (AST) des Codes.
+    """
+    try:
+        return ast.parse(original_code)
+    except SyntaxError as e:
+        raise SyntaxError(f"Syntaxfehler beim Parsen der Datei: {e}")
 
 
 def read_file(file_path):
