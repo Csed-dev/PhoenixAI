@@ -1,8 +1,7 @@
 import ast
-import subprocess
-from pathlib import Path
 import astor
 
+from base_prompt_handling import read_file, run_black_and_isort, save_code_to_file
 
 def collect_imports_and_format(file_path):
     """
@@ -11,9 +10,7 @@ def collect_imports_and_format(file_path):
 
     :param file_path: Pfad zur Python-Datei.
     """
-    # Datei einlesen
-    with open(file_path, "r", encoding="utf-8") as f:
-        original_code = f.read()
+    original_code = read_file(file_path)
 
     # AST-Parsing
     tree = ast.parse(original_code)
@@ -27,30 +24,14 @@ def collect_imports_and_format(file_path):
         else:
             other_code_lines.append(astor.to_source(node).strip())
 
-    # Entferne Duplikate bei Importen
-    unique_imports = sorted(set(imports))
-
-    # Erstelle den neuen Code mit allen Importen oben
+    unique_imports = sorted(set(imports)) # Entferne Duplikate bei Importen
     updated_code = "\n".join(unique_imports) + "\n\n" + "\n".join(other_code_lines)
-
-    # Neue Datei erstellen und speichern
-    new_file_path = Path(file_path).with_name(f"{Path(file_path).stem}_fixed_imports.py")
-    with open(new_file_path, "w", encoding="utf-8") as f:
-        f.write(updated_code)
-
-    print(f"Import-Anweisungen wurden nach oben verschoben und die Datei wurde gespeichert: {new_file_path}")
-
-    # isort und Black auf die neue Datei anwenden
-    try:
-        subprocess.run(["isort", str(new_file_path)], check=True)
-        print(f"isort erfolgreich auf {new_file_path} angewendet.")
-        subprocess.run(["black", str(new_file_path)], check=True)
-        print(f"Black erfolgreich auf {new_file_path} angewendet.")
-    except subprocess.CalledProcessError as e:
-        print(f"Fehler beim Formatieren mit isort oder Black: {e}")
+    save_code_to_file(file_path, updated_code)
+    print(f"[Sort-Imports] Import-Anweisungen wurden nach oben verschoben und die Datei wurde gespeichert: {file_path}")
+    run_black_and_isort(file_path)
 
 
-# Beispielaufruf
+
 if __name__ == "__main__":
-    # Dateipfad angeben
-    collect_imports_and_format("phoenixai\\transformation\\test_imports.py")
+
+    collect_imports_and_format("C:\\Users\\Anwender\\PycharmProjects\\PhoenixAI\\phoenixai\\transformation\\base_prompt_handling.py")

@@ -4,7 +4,7 @@ import ast
 
 import astor
 
-from base_prompt_handling import (call_llm, extract_code_for_llm,
+from base_prompt_handling import (call_llm, read_file,
                                   save_code_to_file, trim_code)
 
 
@@ -185,7 +185,7 @@ def process_file_for_docstrings(file_path, max_retries=5):
     Raises:
         RuntimeError: If maximum retries are exceeded without successful docstring generation.
     """
-    original_code = extract_code_for_llm(file_path)
+    original_code = read_file(file_path)
     prompt = _generate_docstring_prompt(original_code)
     last_llm_response = None
     for attempt in range(1, max_retries + 1):
@@ -225,8 +225,3 @@ def process_file_for_docstrings(file_path, max_retries=5):
             raise RuntimeError(
                 "[Docstring-Updater]  Fehler: Maximale Anzahl an LLM-Aufrufen erreicht, ohne gültige Docstrings zu erhalten."
             )
-
-
-if __name__ == "__main__":
-    file_to_process = "C:\\Users\\Anwender\\PycharmProjects\\PhoenixAI\\phoenixai\\transformation\\base_prompt_handling.py"
-    process_file_for_docstrings(file_to_process)
