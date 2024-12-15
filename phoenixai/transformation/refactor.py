@@ -60,16 +60,13 @@ def generate_refactoring_prompt(functions):
             können und um die Wartbarkeit zu erhöhen 
             Antworte nur mit dem refaktorierten Code.
 
-            
-            
-
             Hinweise:
             1. Jede Funktion oder Klasse sollte klar definierte Aufgaben haben.
             2. Überflüssige Wiederholungen im Code sollten vermieden werden.
             3. Verändere nicht die eigentliche Semantik des Codes. Die Funktionen sollen genau das selbe Ergebnis liefern.
 
             Gib **nur** den modularisierten Code zurück, ohne zusätzliche Erklärungen oder Kommentare außerhalb des Codes.
-"""
+    """
 
 
 def call_llm_for_refactoring(prompt):
@@ -160,129 +157,62 @@ def remove_functions_from_code(lines, lines_to_delete):
     return [line for idx, line in enumerate(lines) if idx not in lines_to_delete]
 
 
-def add_refactored_functions(lines, refactored_functions):
+def add_refactored_functions(lines, refactored_functions, functions_sorted):
     """
     Fügt die refaktorierten Funktionen zum Code hinzu.
 
     Parameters:
     - lines (list of str): Die verbleibenden Zeilen des Codes.
     - refactored_functions (list of str): Eine Liste der refaktorierten Funktionsdefinitionen als Strings.
+    - functions_sorted (list of dict): Die Liste der Funktionen, sortiert nach start_line absteigend.
 
     Returns:
-    - str: Der vollständige refaktorierte Code als String.
+    - list of str: Die aktualisierten Zeilen des Codes.
     """
-    return "\n".join(lines) + "\n\n" + "\n\n".join(refactored_functions)
-
-
-def create_new_file_path(original_file_path, suffix="_refactored"):
-    """
-    Erstellt den Pfad für die neue Datei mit dem angegebenen Suffix.
-
-    Parameters:
-    - original_file_path (str): Der Pfad zur Originaldatei.
-    - suffix (str): Das Suffix, das dem Dateinamen hinzugefügt werden soll (Standard: '_refactored').
-
-    Returns:
-    - str: Der Pfad zur neuen Datei.
-    """
-    base_name, ext = os.path.splitext(os.path.basename(original_file_path))
-    new_file_name = f"{base_name}{suffix}{ext}"
-    # Definiere den Zielordner relativ zur Originaldatei
-    output_dir = os.path.join(os.path.dirname(original_file_path), "improved_codes")
-    os.makedirs(output_dir, exist_ok=True)  # Ordner erstellen, falls er nicht existiert
-    new_file_path = os.path.join(output_dir, new_file_name)
-    return os.path.abspath(new_file_path)  # Absolute Pfad
-
-
-def save_code(new_file_path, refactored_code, iteration=None):
-    """
-    Speichert den refaktorierten Code in der angegebenen Datei.
-
-    Parameters:
-    - new_file_path (str): Der Pfad zur neuen Datei.
-    - refactored_code (str): Der refaktorierte Code, der gespeichert werden soll.
-    - iteration (int, optional): Die Iterationsnummer. Wenn nicht angegeben, wird kein Suffix hinzugefügt.
-
-    Returns:
-    - str: Der Pfad zur gespeicherten Datei.
-    """
-    # Originaldateiname ohne bereits existierende Suffixe "_improved_X"
-    base_name, ext = os.path.splitext(os.path.basename(new_file_path))
-    if "_improved_" in base_name:
-        base_name = base_name.split("_improved_")[0]
-
-    # Neuer Dateiname mit oder ohne Iterationsnummer im Zielordner
-    if iteration is not None:
-        new_file_name = f"{base_name}_improved_{iteration}{ext}"
-    else:
-        new_file_name = f"{base_name}_improved{ext}"
-
-    # Aktualisierter Dateipfad
-    output_dir = os.path.dirname(new_file_path)
-    final_file_path = os.path.join(output_dir, new_file_name)
-    final_file_path = os.path.abspath(final_file_path)  # Absolute Pfad
-
-    # Datei schreiben
-    try:
-        with open(final_file_path, "w", encoding="utf-8") as f:
-            f.write(refactored_code)
-    except IOError as e:
-        raise IOError(f"Fehler beim Schreiben der Datei '{final_file_path}': {e}")
-
-    return final_file_path
-
-
-def print_confirmation(new_file_path):
-    """
-    Gibt eine Bestätigungsmeldung mit dem vollständigen Pfad der neuen Datei aus.
-
-    Parameters:
-    - new_file_path (str): Der Pfad zur neuen Datei.
-    """
-    print(f"Der refaktorierte Code wurde in der Datei gespeichert: {new_file_path}")
+    for func, refactored in zip(functions_sorted, refactored_functions):
+        start = func['start_line'] - 1
+        end = func['end_line']
+        refactored_lines = refactored.splitlines()
+        lines[start:end] = refactored_lines
+    return lines
 
 
 def save_refactored_code(file_path, refactored_functions, line_numbers):
-    """
-    Speichert den refaktorierten Code in einer neuen Datei.
-
-    Parameters:
-    - file_path (str): Der Pfad zur Originaldatei.
-    - refactored_functions (list of str): Eine Liste der refaktorierten Funktionsdefinitionen als Strings.
-    - line_numbers (list of int): Die Zeilennummern der Funktionen, die refaktoriert wurden.
-
-    Returns:
-    - str: Der Pfad zur gespeicherten refaktorierten Datei.
-    """
+    """Speichert den refaktorierten Code direkt in der Originaldatei."""
     original_code = read_original_code(file_path)
     parsed_ast = parse_ast(original_code)
     lines = original_code.splitlines()
-    lines_to_delete = identify_functions_to_remove(parsed_ast, line_numbers)
-    updated_lines = remove_functions_from_code(lines, lines_to_delete)
-    refactored_code = add_refactored_functions(updated_lines, refactored_functions)
-    new_file_path = create_new_file_path(file_path)
-    saved_file_path = save_code(new_file_path, refactored_code)
-    print_confirmation(saved_file_path)
-    return saved_file_path
+    functions = extract_functions_by_lines(file_path, line_numbers)
+    functions_sorted = sorted(functions, key=lambda x: x['start_line'], reverse=True)
+    refactored_functions_sorted = sorted(refactored_functions, key=lambda x: functions[refactored_functions.index(x)]['start_line'], reverse=True)
+    updated_lines = add_refactored_functions(lines, refactored_functions, functions_sorted)
+    
+    refactored_code = "\n".join(updated_lines)
+    
+    # Speichere den refaktorierten Code direkt in der Originaldatei
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(refactored_code)
+    except IOError as e:
+        raise IOError(f"Fehler beim Schreiben der Datei '{file_path}': {e}")
+    
+    print(f"Die Datei wurde erfolgreich refaktoriert und überschrieben: {file_path}")
+    return file_path
 
 
 def process_refactoring(file_path, line_numbers):
     """Kompletter Prozess zur Refaktorisierung von Funktionen."""
-    functions = extract_functions_by_lines(file_path, line_numbers)
-    prompt = generate_refactoring_prompt(functions)
-    refactored_code = call_llm_for_refactoring(prompt)
-    trimmed_refactored_code = trim_code(refactored_code)
+    try:
+        functions = extract_functions_by_lines(file_path, line_numbers)
+        prompt = generate_refactoring_prompt(functions)
+        refactored_code = call_llm_for_refactoring(prompt)
+        trimmed_refactored_code = trim_code(refactored_code)
 
-    # Extrahiere die refaktorierten Funktionen
-    refactored_functions = [
-        f.strip() for f in re.split(r"\n\s*\n", trimmed_refactored_code) if f.strip()
-    ]
-    save_refactored_code(file_path, refactored_functions, line_numbers)
-
-
-if __name__ == "__main__":
-    file_to_process = "test.py"
-    lines = input("Zeilennummern der Funktionen angeben (durch Komma getrennt): ")
-    line_numbers = list(map(int, lines.split(",")))
-
-    process_refactoring(file_to_process, line_numbers)
+        # Extrahiere die refaktorierten Funktionen
+        refactored_functions = [
+            f.strip() for f in re.split(r"\n\s*\n", trimmed_refactored_code) if f.strip()
+        ]
+        saved_file_path = save_refactored_code(file_path, refactored_functions, line_numbers)
+        return saved_file_path
+    except Exception as e:
+        raise RuntimeError(f"Fehler während der Refaktorisierung: {e}")

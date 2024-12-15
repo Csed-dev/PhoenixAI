@@ -101,38 +101,6 @@ def trim_code(improved_code):
     code = _strip_code_end(code)
     return code
 
-def remove_trim_code(improved_code):
-    """
-    Entfernt Markdown-Markierungen am Anfang und Ende des gegebenen Codes.
-
-    Args:
-        improved_code (str): Der ursprüngliche Code mit möglichen Markdown-Markierungen.
-
-    Returns:
-        str: Der getrimmte Code ohne Markdown-Markierungen.
-    """
-    lines = improved_code.splitlines()
-
-    # Entferne ```python oder ``` am Anfang des Codes
-    while lines and lines[0].strip() in ("```python", "```"):
-        lines.pop(0)
-
-    # Finde die Position der letzten ``` Markierung
-    last_markdown_index = next(
-        (
-            len(lines) - 1 - idx
-            for idx, line in enumerate(reversed(lines))
-            if line.strip() == "```"
-        ),
-        None,
-    )
-
-    # Wenn eine letzte ``` Markierung gefunden wurde, schneide alles danach ab
-    if last_markdown_index is not None:
-        lines = lines[:last_markdown_index]
-
-    # Füge die verbleibenden Zeilen wieder zu einem String zusammen und entferne führende/trailende Leerzeichen
-    return "\n".join(lines).strip()
 
 
 def save_code_to_file(file_path, improved_code, iteration=None):
@@ -234,3 +202,20 @@ def apply_isort_to_file(file_path):
             f"Fehler beim Anwenden von isort auf die Datei: {file.resolve()}.\n"
             f"isort-Ausgabe:\n{e.stderr}"
         ) from e
+
+def remove_leading_markdown(lines):
+    while lines and lines[0].strip() in ('```python', '```'):
+        lines.pop(0)
+    return lines
+
+def remove_trailing_markdown(lines):
+    last_markdown_index = next((len(lines) - 1 - idx for idx, line in enumerate(reversed(lines)) if line.strip() == '```'), None)
+    if last_markdown_index is not None:
+        lines = lines[:last_markdown_index]
+    return lines
+
+def remove_trim_code(improved_code):
+    lines = improved_code.splitlines()
+    lines = remove_leading_markdown(lines)
+    lines = remove_trailing_markdown(lines)
+    return '\n'.join(lines).strip()

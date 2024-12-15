@@ -63,7 +63,6 @@ def call_llm(prompt: str, temperature: float = 0.7) -> str:
         return ""
 
 
-# Code trimmen
 def _strip_code_start(improved_code):
     """Entfernt Markdown-Markierungen"""
     lines = improved_code.splitlines()
@@ -100,40 +99,7 @@ def trim_code(improved_code):
     code = _strip_code_start(improved_code)
     code = _strip_code_end(code)
     return code
-
-def remove_trim_code(improved_code):
-    """
-    Entfernt Markdown-Markierungen am Anfang und Ende des gegebenen Codes.
-
-    Args:
-        improved_code (str): Der ursprüngliche Code mit möglichen Markdown-Markierungen.
-
-    Returns:
-        str: Der getrimmte Code ohne Markdown-Markierungen.
-    """
-    lines = improved_code.splitlines()
-
-    # Entferne ```python oder ``` am Anfang des Codes
-    while lines and lines[0].strip() in ("```python", "```"):
-        lines.pop(0)
-
-    # Finde die Position der letzten ``` Markierung
-    last_markdown_index = next(
-        (
-            len(lines) - 1 - idx
-            for idx, line in enumerate(reversed(lines))
-            if line.strip() == "```"
-        ),
-        None,
-    )
-
-    # Wenn eine letzte ``` Markierung gefunden wurde, schneide alles danach ab
-    if last_markdown_index is not None:
-        lines = lines[:last_markdown_index]
-
-    # Füge die verbleibenden Zeilen wieder zu einem String zusammen und entferne führende/trailende Leerzeichen
-    return "\n".join(lines).strip()
-
+  
 
 def save_code_to_file(file_path, improved_code, iteration=None):
     """

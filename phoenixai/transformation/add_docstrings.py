@@ -40,28 +40,28 @@ def generate_docstring_prompt(code_snippet):
         str: The formatted prompt for the LLM.
     """
     return f"""
-Here is the Python code: {code_snippet}
+You are tasked with creating **only docstrings** for the provided Python code.
+Do not execute or modify the code itself. Do not explain anything or provide additional commentary.
 
-**Output the code with the inserted or updated docstrings, maintaining proper formatting and indentation.**
+**Your task:**
 
-Your task is to generate and insert **docstrings** following the specified Google format and style guidelines.
+1. **Create or update the module-level docstring** if it is missing or incomplete.
+   - The module-level docstring must summarize the purpose of the file and provide any necessary contextual information.
+   - It must always appear as the first statement in the file.
+
+2. For each function, method, or class in the file, generate or improve their docstrings, ensuring they follow the **Google-style format** as outlined below.
+
+---
 
 ### Google Docstring Guidelines:
 
-#### **General Format**
-1. Use triple double quotes for all docstrings.
-2. Start with a one-line summary ending in a period, question mark, or exclamation point.
-3. If additional details are necessary, add them after a blank line.
-
 #### **Module Docstrings**
-- Include a top-level docstring summarizing the module’s contents and usage.
-- For test modules, provide docstrings only if they add meaningful information.
+- The module docstring summarizes the purpose of the file, including its contents and usage.
+- This docstring must be at the top of the file, above any imports or code.
 
 #### **Function & Method Docstrings**
-- Mandatory for public APIs or any complex/non-obvious functions.
-- Describe usage and behavior (not implementation details).
-- Use consistent style: either descriptive (e.g., "Fetches rows…") or imperative (e.g., "Fetch rows…").
-- Document arguments, return values, and exceptions with structured sections:
+- Describe the usage and behavior (not implementation details).
+- Use the following structure:
   - **Args:** List parameters with descriptions and types (if not annotated).
   - **Returns:** Describe the return value and type. For multiple values, list as elements of a returned tuple.
   - **Yields:** For generators, describe the yielded values.
@@ -77,10 +77,42 @@ Your task is to generate and insert **docstrings** following the specified Googl
 - Explain intent or reasoning, not literal code behavior.
 - Begin inline comments with `#`, two spaces after the code.
 
-### Your Task:
-1. Do **not** modify the code itself—focus only on generating or improving docstrings.
-2. Insert docstrings directly into the relevant sections of the provided code.
-3. Ensure the docstrings adhere to the Google-style format.
+#### Example:
+```python
+\"\"\"
+This module provides utility functions for data processing.
+
+The functions include:
+- A function for reading data.
+- A function for cleaning data.
+- A function for visualizing data.
+\"\"\"
+
+def example_function(param1: str, param2: int) -> bool:
+    \"\"\"
+    Brief summary of the function.
+
+    Args:
+        param1 (str): Description of param1.
+        param2 (int): Description of param2.
+
+    Returns:
+        bool: Description of the return value.
+
+    Raises:
+        ValueError: If a certain error condition occurs.
+    \"\"\"
+    pass
+
+### Output Requirements:
+
+1. Do **not** modify the code itself—focus only on creating or improving docstrings.
+2. Insert the module-level docstring at the top of the file, followed by any existing imports or code.
+3. Ensure all docstrings adhere to the Google-style format.
+4. Respond **only** with the updated code and its docstrings, so that I can copy your entire output without any adaptations.
+
+Here is the Python code:
+{code_snippet}
 """
 
 
@@ -95,9 +127,63 @@ def call_llm_for_docstrings(prompt):
         if response and response.candidates:
             return response.candidates[0].content.parts[0].text
         else:
-            raise ValueError("Keine Antwort vom LLM erhalten.")
+            raise ValueError("[Docstring-Updater] Keine Antwort vom LLM erhalten.")
     except Exception as e:
-        raise RuntimeError(f"Fehler beim LLM-Aufruf: {e}")
+        raise RuntimeError(f"[Docstring-Updater]  Fehler beim LLM-Aufruf: {e}")
+
+
+def update_module_docstring(original_ast, llm_ast):
+    """
+    Aktualisiert den Modul-Docstring im AST, falls vorhanden, oder fügt ihn hinzu, falls keiner existiert.
+
+    Args:
+        original_ast (ast.Module): Der ursprüngliche AST des Codes.
+        llm_ast (ast.Module): Der AST des vom LLM generierten Codes.
+    """
+    # Extrahiere den Modul-Docstring aus dem LLM-Output
+    llm_module_docstring = None
+    if (
+        isinstance(llm_ast.body[0], ast.Expr)
+        and isinstance(llm_ast.body[0].value, ast.Constant)
+        and isinstance(llm_ast.body[0].value.value, str)
+    ):
+        llm_module_docstring = llm_ast.body[0].value.value  # Der neue Modul-Docstring
+        print("[Debug] Neuer Modul-Docstring aus LLM:", llm_module_docstring)
+
+    if llm_module_docstring:
+        # Überprüfen, ob der Originalcode bereits einen Modul-Docstring hat
+        if (
+            isinstance(original_ast.body[0], ast.Expr)
+            and isinstance(original_ast.body[0].value, ast.Constant)
+            and isinstance(original_ast.body[0].value.value, str)
+        ):
+            print("[Debug] Originaler Modul-Docstring wird ersetzt.")
+            original_ast.body[0] = ast.Expr(value=ast.Constant(value=llm_module_docstring))
+        else:
+            print("[Debug] Kein Modul-Docstring vorhanden. Neuer wird hinzugefügt.")
+            original_ast.body.insert(0, ast.Expr(value=ast.Constant(value=llm_module_docstring)))
+
+
+
+
+def update_function_and_class_docstrings(original_ast, llm_ast):
+    """
+    Aktualisiert die Docstrings von Funktionen und Klassen im AST.
+    """
+    for node in original_ast.body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            for llm_node in llm_ast.body:
+                if isinstance(llm_node, (ast.FunctionDef, ast.ClassDef)) and node.name == llm_node.name:
+                    new_docstring = ast.get_docstring(llm_node)
+                    if new_docstring:
+                        node.body = [
+                            ast.Expr(value=ast.Constant(value=new_docstring))  # Füge den neuen Docstring ein
+                        ] + [
+                            n for n in node.body if not isinstance(n, ast.Expr) or not (
+                                isinstance(n.value, ast.Constant)
+                                and isinstance(n.value.value, str)
+                            )
+                        ]
 
 
 def insert_docstrings_to_code(original_code, llm_response):
@@ -106,36 +192,20 @@ def insert_docstrings_to_code(original_code, llm_response):
     """
     try:
         original_ast = ast.parse(original_code)
-        llm_ast = ast.parse(llm_response)
+        try:
+            llm_ast = ast.parse(llm_response)
+        except SyntaxError as parse_error:
+            raise RuntimeError(f"[Docstring-Updater] Ungültiger LLM-Code: {llm_response}") from parse_error
 
-        # Iteriere über alle Knoten im Original-AST
-        for node in original_ast.body:
-            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-                # Suche den passenden Knoten im LLM-AST
-                for llm_node in llm_ast.body:
-                    if (
-                        isinstance(llm_node, (ast.FunctionDef, ast.ClassDef))
-                        and node.name == llm_node.name
-                    ):
-                        # Extrahiere den neuen Docstring aus dem LLM-Knoten
-                        new_docstring = ast.get_docstring(llm_node)
-                        if new_docstring:
-                            # Ersetze den bestehenden Docstring (falls vorhanden)
-                            node.body = [
-                                ast.Expr(value=ast.Constant(value=new_docstring))  # Verwendung von ast.Constant
-                            ] + [
-                                n
-                                for n in node.body
-                                if not isinstance(n, ast.Expr) or not (
-                                    isinstance(n.value, ast.Constant)
-                                    and isinstance(n.value.value, str)
-                                )
-                            ]
+        # Aktualisiere Modul-Docstring
+        update_module_docstring(original_ast, llm_ast)
+        
+        # Aktualisiere Funktions- und Klassendocstrings
+        update_function_and_class_docstrings(original_ast, llm_ast)
+
         return astor.to_source(original_ast)
     except Exception as e:
-        raise RuntimeError(f"Fehler beim Einfügen der Docstrings: {e}")
-
-
+        raise RuntimeError(f"[Docstring-Updater] Fehler beim Einfügen der Docstrings: {e}")
 
 
 def save_code_with_docstrings(file_path, updated_code):
@@ -143,19 +213,45 @@ def save_code_with_docstrings(file_path, updated_code):
     output_file = file_path.replace(".py", "_docstrings.py")
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(updated_code)
-    print(f"Der aktualisierte Code wurde gespeichert: {output_file}")
+    print(f"[Docstring-Updater] Der aktualisierte Code wurde gespeichert: {output_file}")
 
 
-def process_file_for_docstrings(file_path):
-    """Kompletter Prozess zur Generierung und Einfügung von Docstrings."""
+def process_file_for_docstrings(file_path, max_retries=5):
+    """Kompletter Prozess zur Generierung und Einfügung von Docstrings mit Wiederholungslogik."""
     original_code = extract_code_for_llm(file_path)
     prompt = generate_docstring_prompt(original_code)
-    llm_response = call_llm_for_docstrings(prompt)
-    trimmed_code = trim_code(llm_response)
-    updated_code = insert_docstrings_to_code(original_code, trimmed_code)
-    save_code_with_docstrings(file_path, updated_code)
+    
+    last_llm_response = None  # Speichert die letzte LLM-Antwort für Debugging
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"[Docstring-Updater] Versuch {attempt}: LLM wird aufgerufen...")
+            llm_response = call_llm_for_docstrings(prompt)
+            print(llm_response) # enfernen
+            last_llm_response = llm_response  # Speichere den aktuellen LLM-Output
+            trimmed_code = trim_code(llm_response)
+            
+            # Teste, ob der LLM-Code gültig ist
+            print("[Docstring-Updater] [Debug] Überprüfe die Gültigkeit des zurückgegebenen Codes...")
+            ast.parse(trimmed_code)  # Validiert, ob der Code parsebar ist
+            
+            # Wenn kein Fehler auftritt, führe den Einfügeprozess aus
+            updated_code = insert_docstrings_to_code(original_code, trimmed_code)
+            save_code_with_docstrings(file_path, updated_code)
+            break
+        except SyntaxError as e:
+            print(f"[Docstring-Updater] [Fehler] Syntaxfehler im LLM-Code bei Versuch {attempt}: {e}")
+            print(f"[Docstring-Updater] [Debug] Ungültiger LLM-Code:\n{last_llm_response}")
+        except Exception as e:
+            print(f"[Docstring-Updater] [Fehler] Unerwarteter Fehler bei Versuch {attempt}: {e}")
+        
+        if attempt == max_retries:
+            # Letzten LLM-Output speichern für Debugging
+            with open("[Docstring-Updater]  last_failed_llm_response.txt", "w", encoding="utf-8") as f:
+                f.write(last_llm_response or "[Docstring-Updater]  Keine gültige Antwort erhalten.")
+            raise RuntimeError("[Docstring-Updater]  Fehler: Maximale Anzahl an LLM-Aufrufen erreicht, ohne gültige Docstrings zu erhalten.")
+
 
 
 if __name__ == "__main__":
-    file_to_process = "phoenixai\\transformation\\test_example_refactored.py"
+    file_to_process = "phoenixai\\transformation\\base_prompt_handling.py"
     process_file_for_docstrings(file_to_process)

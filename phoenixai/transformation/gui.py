@@ -1,19 +1,76 @@
 import os
 import tkinter as tk
-from tkinter import Listbox, Scrollbar, END, ttk
+from tkinter import Listbox, Scrollbar, END, ttk, filedialog
 from tkinter.messagebox import showinfo, showerror
-from refactor import process_refactoring, extract_functions_by_lines
+from refactor import process_refactoring
 
 import ast
 import astor
 import re
-import git  # Importiere GitPython
+import time
+import datetime
 
 # Historienstacks für Navigation
 back_history = []
 forward_history = []
 
-selected_file_path = None  # Globale Variable zur Speicherung des ausgewählten Dateipfads
+class PipelineStep:
+    def __init__(self, name):
+        self.name = name
+        self.start_time = None
+        self.end_time = None
+        self.outcome = None  # "success" oder "failure"
+
+    def run(self, function, *args, **kwargs):
+        """Führt den Schritt aus und protokolliert die Zeit und das Ergebnis."""
+        self.start_time = datetime.datetime.now()
+        try:
+            function(*args, **kwargs)  # Die tatsächliche Funktion des Schrittes
+            self.outcome = "success"
+        except Exception as e:
+            self.outcome = f"failure: {e}"
+        finally:
+            self.end_time = datetime.datetime.now()
+
+    def get_time_taken(self):
+        """Gibt die benötigte Zeit als String zurück."""
+        if self.start_time and self.end_time:
+            delta = self.end_time - self.start_time
+            return str(delta.seconds) + " Sekunden"
+        return "Not completed"
+
+    def get_status(self):
+        """Gibt den aktuellen Status zurück."""
+        return {
+            "Step": self.name,
+            "Outcome": self.outcome if self.outcome else "Running",
+            "Time Taken": self.get_time_taken(),
+            "Timestamp": self.start_time.strftime("%H:%M:%S") if self.start_time else "N/A",
+        }
+
+class Pipeline:
+    def __init__(self, status_label):
+        self.steps = []
+        self.status_label = status_label
+
+    def add_step(self, name, function, *args, **kwargs):
+        """Fügt einen Schritt zur Pipeline hinzu und führt ihn aus."""
+        step = PipelineStep(name)
+        self.steps.append(step)
+        step.run(function, *args, **kwargs)
+        self.display_status()
+
+    def display_status(self):
+        """Aktualisiert die Statusanzeige in der GUI."""
+        status_text = "\n".join([
+            f"Schritt: {step.get_status()['Step']}\n"
+            f"Ergebnis: {step.get_status()['Outcome']}\n"
+            f"Zeit: {step.get_status()['Time Taken']}\n"
+            f"Startzeit: {step.get_status()['Timestamp']}\n"
+            f"{'-'*50}"
+            for step in self.steps
+        ])
+        self.status_label.config(text=status_text)
 
 def list_directory_contents(directory):
     """Listet alle Dateien und Ordner im Verzeichnis auf."""
@@ -42,7 +99,10 @@ def update_directory_list(directory, add_to_history=True):
     dir_label.config(text=f"Aktuelles Verzeichnis: {directory}")
     # Statusanzeige zurücksetzen
     status_label.config(text="")
-    git_status_label.config(text="")  # Git-Status zurücksetzen
+    pipeline = getattr(root, 'pipeline', None)
+    if pipeline:
+        pipeline.steps = []
+        pipeline.display_status()
 
 def extract_functions(file_path):
     """
@@ -79,9 +139,6 @@ def show_functions_selection(file_path):
     Parameters:
     - file_path (str): Der Pfad zur Python-Datei.
     """
-    global selected_file_path
-    selected_file_path = file_path  # Setze den ausgewählten Pfad
-    
     functions = extract_functions(file_path)
     if not functions:
         showinfo("Info", "Keine Funktionen in der ausgewählten Datei gefunden.")
@@ -91,9 +148,10 @@ def show_functions_selection(file_path):
     selection_window = tk.Toplevel(root)
     selection_window.title("Funktionen auswählen zur Refaktorisierung")
     selection_window.geometry("600x400")
+    selection_window.resizable(False, False)
     
     # Scrollbar hinzufügen
-    canvas = tk.Canvas(selection_window)
+    canvas = tk.Canvas(selection_window, borderwidth=0)
     scrollbar = ttk.Scrollbar(selection_window, orient="vertical", command=canvas.yview)
     scrollable_frame = ttk.Frame(canvas)
     
@@ -135,8 +193,24 @@ def show_functions_selection(file_path):
             showinfo("Info", "Keine Funktionen ausgewählt.")
             return
         
+        selected_actions = []
+        for action, var in action_vars.items():
+            if var.get():
+                selected_actions.append(action)
+        
+        if not selected_actions:
+            showinfo("Info", "Keine Aktionen ausgewählt.")
+            return
+        
+        pipeline = root.pipeline
+        for action in selected_actions:
+            step_name = action
+            function = action_functions.get(action)
+            if function:
+                pipeline.add_step(step_name, function, file_path)
+        
         # Startet den Refaktorisierungsprozess
-        process_refactoring(file_path, list(set(selected_line_numbers)))
+        pipeline.add_step("Refaktorisierung", process_refactoring, file_path, list(set(selected_line_numbers)))
         selection_window.destroy()
     
     # Bestätigungsbutton
@@ -187,177 +261,31 @@ def on_mouse_button(event):
     elif event.num == 5:  # "Vorwärts"-Taste
         navigate_forward()
 
-def get_git_repo(directory):
-    """
-    Gibt das Git-Repository für das angegebene Verzeichnis zurück.
-    Wenn kein Repository gefunden wird, gibt es None zurück.
-    
-    Parameters:
-    - directory (str): Das Verzeichnis, in dem nach einem Git-Repository gesucht wird.
-    
-    Returns:
-    - git.Repo oder None: Das Git-Repository-Objekt oder None, wenn kein Repository gefunden wurde.
-    """
-    try:
-        repo = git.Repo(directory, search_parent_directories=True)
-        return repo
-    except git.exc.InvalidGitRepositoryError:
-        return None
-
-def show_git_status(file_path):
-    """
-    Zeigt den Git-Status der Datei an.
-    
-    Parameters:
-    - file_path (str): Der Pfad zur Datei.
-    """
-    repo = get_git_repo(current_directory)
-    if repo is None:
-        git_status_label.config(text="Kein Git-Repository gefunden.")
-        return
-    
-    # Relativer Pfad zur Datei im Repository
-    try:
-        rel_path = os.path.relpath(file_path, repo.working_tree_dir)
-    except ValueError:
-        git_status_label.config(text="Die Datei gehört nicht zum Git-Repository.")
-        return
-    
-    # Git-Status abrufen
-    if rel_path in repo.untracked_files:
-        status = "untracked"
-    elif any(rel_path == item.a_path for item in repo.index.diff(None)):
-        status = "modified"
-    else:
-        status = "clean"
-    
-    git_status_label.config(text=f"Git-Status der Datei: {status}")
-
-def stage_changes():
-    """
-    Staget die Änderungen der Datei im Git-Repository.
-    Verwendet die globale Variable selected_file_path.
-    """
-    global selected_file_path
-    if selected_file_path is None:
-        showerror("Fehler", "Keine Datei ausgewählt.")
-        return
-    
-    repo = get_git_repo(current_directory)
-    if repo is None:
-        showerror("Fehler", "Kein Git-Repository gefunden.")
-        return
-    
-    try:
-        rel_path = os.path.relpath(selected_file_path, repo.working_tree_dir)
-        repo.index.add([rel_path])
-        showinfo("Erfolg", f"Änderungen an '{rel_path}' wurden gestaged.")
-        show_git_status(selected_file_path)
-    except Exception as e:
-        showerror("Fehler", f"Fehler beim Stagen der Änderungen: {e}")
-
-def revert_changes():
-    """
-    Setzt die Änderungen der Datei im Git-Repository zurück.
-    Verwendet die globale Variable selected_file_path.
-    """
-    global selected_file_path
-    if selected_file_path is None:
-        showerror("Fehler", "Keine Datei ausgewählt.")
-        return
-    
-    repo = get_git_repo(current_directory)
-    if repo is None:
-        showerror("Fehler", "Kein Git-Repository gefunden.")
-        return
-    
-    try:
-        rel_path = os.path.relpath(selected_file_path, repo.working_tree_dir)
-        repo.git.checkout('--', rel_path)
-        showinfo("Erfolg", f"Änderungen an '{rel_path}' wurden zurückgesetzt.")
-        show_git_status(selected_file_path)
-    except Exception as e:
-        showerror("Fehler", f"Fehler beim Zurücksetzen der Änderungen: {e}")
-
-def show_refactor_options(file_path):
-    """
-    Zeigt Optionen zum Stagen oder Revertieren nach der Refaktorisierung an.
-    
-    Parameters:
-    - file_path (str): Der Pfad zur Datei.
-    """
-    # Git-Status anzeigen
-    show_git_status(file_path)
-    
-    # Buttons zum Stagen und Revertieren hinzufügen, falls die Datei modifiziert wurde
-    repo = get_git_repo(current_directory)
-    if repo is None:
-        return
-    
-    rel_path = os.path.relpath(file_path, repo.working_tree_dir)
-    if rel_path in repo.untracked_files or any(rel_path == item.a_path for item in repo.index.diff(None)):
-        stage_button.pack(pady=5)
-        revert_button.pack(pady=5)
-    else:
-        stage_button.pack_forget()
-        revert_button.pack_forget()
-
-def process_refactoring(file_path, line_numbers):
-    """Kompletter Prozess zur Refaktorisierung von Funktionen."""
-    try:
-        backup_original_file(file_path)
-        functions = extract_functions_by_lines(file_path, line_numbers)
-        prompt = generate_refactoring_prompt(functions)
-        refactored_code = call_llm_for_refactoring(prompt)
-        trimmed_refactored_code = trim_code(refactored_code)
-
-        # Extrahiere die refaktorierten Funktionen
-        refactored_functions = [
-            f.strip() for f in re.split(r"\n\s*\n", trimmed_refactored_code) if f.strip()
-        ]
-        save_refactored_code(file_path, refactored_functions, line_numbers)
-        status_label.config(text="Erfolg: Die Datei wurde erfolgreich refaktoriert!")
-        
-        # Zeige Git-Optionen an
-        show_refactor_options(file_path)
-    except Exception as e:
-        status_label.config(text=f"Fehler: Ein Fehler ist aufgetreten: {e}")
-
-def backup_original_file(file_path):
-    """
-    Erstellt eine Sicherungskopie der Originaldatei.
-    
-    Parameters:
-    - file_path (str): Der Pfad zur Originaldatei.
-    """
-    backup_path = file_path + ".bak"
-    try:
-        with open(file_path, "r", encoding="utf-8") as original, open(backup_path, "w", encoding="utf-8") as backup:
-            backup.write(original.read())
-        print(f"Sicherungskopie erstellt: {backup_path}")
-    except IOError as e:
-        raise IOError(f"Fehler beim Erstellen der Sicherungskopie: {e}")
-
 # GUI erstellen
 root = tk.Tk()
 root.title("Python Refactoring Tool")
-root.geometry("800x600")  # Setze eine geeignete Fenstergröße
+root.geometry("900x700")
+root.resizable(False, False)
+
+# Style konfigurieren
+style = ttk.Style(root)
+style.theme_use('clam')
 
 # Startverzeichnis
 current_directory = os.getcwd()
 
 # Verzeichnis-Anzeige
-dir_label = tk.Label(root, text=f"Aktuelles Verzeichnis: {current_directory}", anchor="w")
+dir_label = ttk.Label(root, text=f"Aktuelles Verzeichnis: {current_directory}", anchor="w", font=("Helvetica", 12, "bold"))
 dir_label.pack(fill="x", padx=10, pady=(10, 5))
 
 # Datei- und Ordnerliste
-frame = tk.Frame(root)
+frame = ttk.Frame(root)
 frame.pack(padx=10, pady=5, fill="both", expand=True)
 
-scrollbar = Scrollbar(frame)
+scrollbar = ttk.Scrollbar(frame, orient="vertical")
 scrollbar.pack(side="right", fill="y")
 
-dir_listbox = Listbox(frame, height=25, width=100, yscrollcommand=scrollbar.set)
+dir_listbox = tk.Listbox(frame, height=20, width=100, yscrollcommand=scrollbar.set, font=("Courier", 10))
 dir_listbox.pack(side="left", fill="both", expand=True)
 # Bindet den Doppelklick-Event an die neue Handler-Funktion
 dir_listbox.bind("<Double-Button-1>", on_item_double_click)
@@ -369,34 +297,104 @@ root.bind_all("<Button-5>", on_mouse_button)  # "Vorwärts" Taste
 scrollbar.config(command=dir_listbox.yview)
 
 # Navigationsbuttons
-nav_frame = tk.Frame(root)
+nav_frame = ttk.Frame(root)
 nav_frame.pack(fill="x", padx=10, pady=(5, 5))
 
-navigate_up_button = tk.Button(nav_frame, text="⬆️ Nach oben navigieren", command=navigate_up)
+navigate_up_button = ttk.Button(nav_frame, text="⬆️ Nach oben navigieren", command=navigate_up)
 navigate_up_button.pack(side="left")
 
 # Zusätzliche Schaltflächen für Zurück und Vorwärts in der GUI
-navigate_back_button = tk.Button(nav_frame, text="🔙 Zurück", command=navigate_back)
+navigate_back_button = ttk.Button(nav_frame, text="🔙 Zurück", command=navigate_back)
 navigate_back_button.pack(side="left", padx=(10, 0))
 
-navigate_forward_button = tk.Button(nav_frame, text="🔜 Vorwärts", command=navigate_forward)
+navigate_forward_button = ttk.Button(nav_frame, text="🔜 Vorwärts", command=navigate_forward)
 navigate_forward_button.pack(side="left", padx=(5, 0))
 
+# Auswahlmöglichkeiten
+actions_frame = ttk.LabelFrame(root, text="Aktionen auswählen", padding=(10, 10))
+actions_frame.pack(fill="x", padx=10, pady=5)
+
+actions = [
+    "Pylint",
+    "Black",
+    "Isort",
+    "Move Imports",
+    "Refactor",
+    "Multi Chain Comparison",
+    "Add/Improve Docstrings",
+    "Sourcery",
+    "SonarQube",
+    "Custom Prompt"
+]
+
+action_vars = {}
+for action in actions:
+    var = tk.BooleanVar()
+    cb = ttk.Checkbutton(actions_frame, text=action, variable=var)
+    cb.pack(side="left", padx=5, pady=5)
+    action_vars[action] = var
+
+# Aktionen Funktionen (Platzhalter)
+def run_pylint(file_path):
+    # Implementiere Pylint-Ausführung
+    time.sleep(1)
+
+def run_sonarqube(file_path):
+    # Implementiere SonarQube-Ausführung
+    time.sleep(1)
+
+def run_black(file_path):
+    # Implementiere Black-Ausführung
+    time.sleep(1)
+
+def run_isort(file_path):
+    # Implementiere Isort-Ausführung
+    time.sleep(1)
+
+def move_imports(file_path):
+    # Implementiere Move Imports-Ausführung
+    time.sleep(1)
+
+def run_refactor(file_path):
+    # Implementiere Refactor-Ausführung
+    time.sleep(1)
+
+def multi_chain_comparison(file_path):
+    # Implementiere Multi Chain Comparison-Ausführung
+    time.sleep(1)
+
+def add_improve_docstrings(file_path):
+    # Implementiere Add/Improve Docstrings-Ausführung
+    time.sleep(1)
+
+def run_sourcery(file_path):
+    # Implementiere Sourcery-Ausführung
+    time.sleep(1)
+
+def custom_prompt(file_path):
+    # Implementiere Custom Prompt-Ausführung
+    time.sleep(1)
+
+action_functions = {
+    "Pylint": run_pylint,
+    "SonarQube": run_sonarqube,
+    "Black": run_black,
+    "Isort": run_isort,
+    "Move Imports": move_imports,
+    "Refactor": run_refactor,
+    "Multi Chain Comparison": multi_chain_comparison,
+    "Add/Improve Docstrings": add_improve_docstrings,
+    "Sourcery": run_sourcery,
+    "Custom Prompt": custom_prompt
+}
+
 # Statusanzeige (neues Label am unteren Ende der GUI)
-status_frame = tk.Frame(root)
-status_frame.pack(fill="x", padx=10, pady=(5, 10))
+status_label = ttk.Label(root, text="", anchor="w", foreground="blue", font=("Helvetica", 10))
+status_label.pack(fill="x", padx=10, pady=(5, 10))
 
-status_label = tk.Label(status_frame, text="", anchor="w", fg="blue")
-status_label.pack(fill="x", side="top")
-
-git_status_label = tk.Label(status_frame, text="", anchor="w", fg="green")
-git_status_label.pack(fill="x", side="top")
-
-# Buttons zum Stagen und Revertieren (initial versteckt)
-stage_button = ttk.Button(status_frame, text="Änderungen Stagen", command=stage_changes)
-revert_button = ttk.Button(status_frame, text="Änderungen Revertieren", command=revert_changes)
-stage_button.pack_forget()
-revert_button.pack_forget()
+# Pipeline initialisieren
+pipeline = Pipeline(status_label)
+root.pipeline = pipeline
 
 # Verzeichnis initial laden ohne zur Historie hinzuzufügen
 update_directory_list(current_directory, add_to_history=False)
