@@ -81,7 +81,7 @@ def call_llm_for_refactoring(prompt):
         else:
             raise ValueError("Keine Antwort vom LLM erhalten.")
     except Exception as e:
-        raise RuntimeError(f"Fehler beim LLM-Aufruf: {e}")
+        raise RuntimeError(f"Fehler beim LLM-Aufruf: {e}") from e
 
 
 def read_original_code(file_path):
@@ -98,7 +98,7 @@ def read_original_code(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
     except IOError as e:
-        raise IOError(f"Fehler beim Lesen der Datei '{file_path}': {e}")
+        raise IOError(f"Fehler beim Lesen der Datei '{file_path}': {e}") from e
 
 
 def parse_ast(original_code):
@@ -114,7 +114,7 @@ def parse_ast(original_code):
     try:
         return ast.parse(original_code)
     except SyntaxError as e:
-        raise SyntaxError(f"Syntaxfehler beim Parsen der Datei: {e}")
+        raise SyntaxError(f"Syntaxfehler beim Parsen der Datei: {e}") from e
 
 
 def identify_functions_to_remove(parsed_ast, line_numbers):
@@ -186,16 +186,16 @@ def save_refactored_code(file_path, refactored_functions, line_numbers):
     functions_sorted = sorted(functions, key=lambda x: x['start_line'], reverse=True)
     refactored_functions_sorted = sorted(refactored_functions, key=lambda x: functions[refactored_functions.index(x)]['start_line'], reverse=True)
     updated_lines = add_refactored_functions(lines, refactored_functions, functions_sorted)
-    
+
     refactored_code = "\n".join(updated_lines)
-    
+
     # Speichere den refaktorierten Code direkt in der Originaldatei
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(refactored_code)
     except IOError as e:
-        raise IOError(f"Fehler beim Schreiben der Datei '{file_path}': {e}")
-    
+        raise IOError(f"Fehler beim Schreiben der Datei '{file_path}': {e}") from e
+
     print(f"Die Datei wurde erfolgreich refaktoriert und überschrieben: {file_path}")
     return file_path
 
@@ -212,7 +212,6 @@ def process_refactoring(file_path, line_numbers):
         refactored_functions = [
             f.strip() for f in re.split(r"\n\s*\n", trimmed_refactored_code) if f.strip()
         ]
-        saved_file_path = save_refactored_code(file_path, refactored_functions, line_numbers)
-        return saved_file_path
+        return save_refactored_code(file_path, refactored_functions, line_numbers)
     except Exception as e:
-        raise RuntimeError(f"Fehler während der Refaktorisierung: {e}")
+        raise RuntimeError(f"Fehler während der Refaktorisierung: {e}") from e

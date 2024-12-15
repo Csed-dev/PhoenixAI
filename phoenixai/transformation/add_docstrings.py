@@ -1,6 +1,5 @@
 import ast
 import os
-import re
 
 import astor
 import google.generativeai as genai
@@ -116,7 +115,6 @@ Here is the Python code:
 """
 
 
-
 def call_llm_for_docstrings(prompt):
     """Ruft das LLM auf, um Docstrings zu generieren."""
     try:
@@ -129,7 +127,7 @@ def call_llm_for_docstrings(prompt):
         else:
             raise ValueError("[Docstring-Updater] Keine Antwort vom LLM erhalten.")
     except Exception as e:
-        raise RuntimeError(f"[Docstring-Updater]  Fehler beim LLM-Aufruf: {e}")
+        raise RuntimeError(f"[Docstring-Updater]  Fehler beim LLM-Aufruf: {e}") from e
 
 
 def update_module_docstring(original_ast, llm_ast):
@@ -143,9 +141,9 @@ def update_module_docstring(original_ast, llm_ast):
     # Extrahiere den Modul-Docstring aus dem LLM-Output
     llm_module_docstring = None
     if (
-        isinstance(llm_ast.body[0], ast.Expr)
-        and isinstance(llm_ast.body[0].value, ast.Constant)
-        and isinstance(llm_ast.body[0].value.value, str)
+            isinstance(llm_ast.body[0], ast.Expr)
+            and isinstance(llm_ast.body[0].value, ast.Constant)
+            and isinstance(llm_ast.body[0].value.value, str)
     ):
         llm_module_docstring = llm_ast.body[0].value.value  # Der neue Modul-Docstring
         print("[Debug] Neuer Modul-Docstring aus LLM:", llm_module_docstring)
@@ -153,17 +151,15 @@ def update_module_docstring(original_ast, llm_ast):
     if llm_module_docstring:
         # Überprüfen, ob der Originalcode bereits einen Modul-Docstring hat
         if (
-            isinstance(original_ast.body[0], ast.Expr)
-            and isinstance(original_ast.body[0].value, ast.Constant)
-            and isinstance(original_ast.body[0].value.value, str)
+                isinstance(original_ast.body[0], ast.Expr)
+                and isinstance(original_ast.body[0].value, ast.Constant)
+                and isinstance(original_ast.body[0].value.value, str)
         ):
             print("[Debug] Originaler Modul-Docstring wird ersetzt.")
             original_ast.body[0] = ast.Expr(value=ast.Constant(value=llm_module_docstring))
         else:
             print("[Debug] Kein Modul-Docstring vorhanden. Neuer wird hinzugefügt.")
             original_ast.body.insert(0, ast.Expr(value=ast.Constant(value=llm_module_docstring)))
-
-
 
 
 def update_function_and_class_docstrings(original_ast, llm_ast):
@@ -174,16 +170,18 @@ def update_function_and_class_docstrings(original_ast, llm_ast):
         if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
             for llm_node in llm_ast.body:
                 if isinstance(llm_node, (ast.FunctionDef, ast.ClassDef)) and node.name == llm_node.name:
-                    new_docstring = ast.get_docstring(llm_node)
-                    if new_docstring:
+                    if new_docstring := ast.get_docstring(llm_node):
                         node.body = [
-                            ast.Expr(value=ast.Constant(value=new_docstring))  # Füge den neuen Docstring ein
-                        ] + [
-                            n for n in node.body if not isinstance(n, ast.Expr) or not (
-                                isinstance(n.value, ast.Constant)
-                                and isinstance(n.value.value, str)
-                            )
-                        ]
+                                        ast.Expr(
+                                            value=ast.Constant(value=new_docstring)
+                                        )  # Füge den neuen Docstring ein
+                                    ] + [
+                                        n
+                                        for n in node.body
+                                        if not isinstance(n, ast.Expr)
+                                           or not isinstance(n.value, ast.Constant)
+                                           or not isinstance(n.value.value, str)
+                                    ]
 
 
 def insert_docstrings_to_code(original_code, llm_response):
@@ -199,13 +197,15 @@ def insert_docstrings_to_code(original_code, llm_response):
 
         # Aktualisiere Modul-Docstring
         update_module_docstring(original_ast, llm_ast)
-        
+
         # Aktualisiere Funktions- und Klassendocstrings
         update_function_and_class_docstrings(original_ast, llm_ast)
 
         return astor.to_source(original_ast)
     except Exception as e:
-        raise RuntimeError(f"[Docstring-Updater] Fehler beim Einfügen der Docstrings: {e}")
+        raise RuntimeError(
+            f"[Docstring-Updater] Fehler beim Einfügen der Docstrings: {e}"
+        ) from e
 
 
 def save_code_with_docstrings(file_path, updated_code):
@@ -220,20 +220,20 @@ def process_file_for_docstrings(file_path, max_retries=5):
     """Kompletter Prozess zur Generierung und Einfügung von Docstrings mit Wiederholungslogik."""
     original_code = extract_code_for_llm(file_path)
     prompt = generate_docstring_prompt(original_code)
-    
+
     last_llm_response = None  # Speichert die letzte LLM-Antwort für Debugging
     for attempt in range(1, max_retries + 1):
         try:
             print(f"[Docstring-Updater] Versuch {attempt}: LLM wird aufgerufen...")
             llm_response = call_llm_for_docstrings(prompt)
-            print(llm_response) # enfernen
+            print(llm_response)  # enfernen
             last_llm_response = llm_response  # Speichere den aktuellen LLM-Output
             trimmed_code = trim_code(llm_response)
-            
+
             # Teste, ob der LLM-Code gültig ist
             print("[Docstring-Updater] [Debug] Überprüfe die Gültigkeit des zurückgegebenen Codes...")
             ast.parse(trimmed_code)  # Validiert, ob der Code parsebar ist
-            
+
             # Wenn kein Fehler auftritt, führe den Einfügeprozess aus
             updated_code = insert_docstrings_to_code(original_code, trimmed_code)
             save_code_with_docstrings(file_path, updated_code)
@@ -243,13 +243,13 @@ def process_file_for_docstrings(file_path, max_retries=5):
             print(f"[Docstring-Updater] [Debug] Ungültiger LLM-Code:\n{last_llm_response}")
         except Exception as e:
             print(f"[Docstring-Updater] [Fehler] Unerwarteter Fehler bei Versuch {attempt}: {e}")
-        
+
         if attempt == max_retries:
             # Letzten LLM-Output speichern für Debugging
             with open("[Docstring-Updater]  last_failed_llm_response.txt", "w", encoding="utf-8") as f:
                 f.write(last_llm_response or "[Docstring-Updater]  Keine gültige Antwort erhalten.")
-            raise RuntimeError("[Docstring-Updater]  Fehler: Maximale Anzahl an LLM-Aufrufen erreicht, ohne gültige Docstrings zu erhalten.")
-
+            raise RuntimeError(
+                "[Docstring-Updater]  Fehler: Maximale Anzahl an LLM-Aufrufen erreicht, ohne gültige Docstrings zu erhalten.")
 
 
 if __name__ == "__main__":

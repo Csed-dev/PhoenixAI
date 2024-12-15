@@ -14,11 +14,11 @@ def sonarqube_to_llm(issue, code_file_path, iteration=1):
     try:
         with open(code_file_path, "r", encoding="utf-8") as f:
             original_code = f.read()
-    except FileNotFoundError:
-        raise ValueError(f"Datei nicht gefunden: {code_file_path}")
+    except FileNotFoundError as e:
+        raise ValueError(f"Datei nicht gefunden: {code_file_path}") from e
 
     # Generiere den Prompt basierend auf dem SonarQube-Issue
-    prompt = generate_initial_prompt(original_code) + f"""
+    prompt = f"""{generate_initial_prompt(original_code)}
     - {issue['message']} (SonarQube-Rule: {issue['rule']}).
     """
 

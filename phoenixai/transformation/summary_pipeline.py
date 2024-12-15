@@ -23,14 +23,14 @@ class PipelineStep:
         """Gibt die benötigte Zeit als String zurück."""
         if self.start_time and self.end_time:
             delta = self.end_time - self.start_time
-            return str(delta.seconds) + " Sekunden"
+            return f"{str(delta.seconds)} Sekunden"
         return "Not completed"
 
     def get_status(self):
         """Gibt den aktuellen Status zurück."""
         return {
             "Step": self.name,
-            "Outcome": self.outcome if self.outcome else "Running",
+            "Outcome": self.outcome or "Running",
             "Time Taken": self.get_time_taken(),
             "Timestamp": self.start_time.strftime("%H:%M:%S") if self.start_time else "N/A",
         }
@@ -57,19 +57,3 @@ class Pipeline:
             print(f"Zeit: {status['Time Taken']}")
             print(f"Startzeit: {status['Timestamp']}")
             print("-" * 50)
-
-# Beispiel-Funktion zur Simulation
-def example_task(duration=2, success=True):
-    time.sleep(duration)  # Simuliert Arbeit
-    if not success:
-        raise Exception("Beispiel-Fehler")
-
-# Pipeline ausführen
-if __name__ == "__main__":
-    pipeline = Pipeline()
-    try:
-        pipeline.add_step("1 Black", example_task, duration=2, success=True)
-        pipeline.add_step("2 Green", example_task, duration=3, success=False)
-        pipeline.add_step("3 Blue", example_task, duration=1, success=True)
-    except Exception as e:
-        print(f"Fehler in der Pipeline: {e}")

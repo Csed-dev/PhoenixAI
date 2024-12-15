@@ -17,18 +17,18 @@ from pathlib import Path
 import subprocess
 
 def extract_imports(tree):
-    imports = []
-    for node in tree.body:
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            imports.append(astor.to_source(node).strip())
-    return imports
+    return [
+        astor.to_source(node).strip()
+        for node in tree.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+    ]
 
 def extract_code_without_imports(tree):
-    code_lines = []
-    for node in tree.body:
-        if not isinstance(node, (ast.Import, ast.ImportFrom)):
-            code_lines.append(astor.to_source(node).strip())
-    return code_lines
+    return [
+        astor.to_source(node).strip()
+        for node in tree.body
+        if not isinstance(node, (ast.Import, ast.ImportFrom))
+    ]
 
 def format_code(imports, code_lines):
     unique_imports = sorted(set(imports))

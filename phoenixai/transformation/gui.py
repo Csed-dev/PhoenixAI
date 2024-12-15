@@ -36,14 +36,14 @@ class PipelineStep:
         """Gibt die benötigte Zeit als String zurück."""
         if self.start_time and self.end_time:
             delta = self.end_time - self.start_time
-            return str(delta.seconds) + " Sekunden"
+            return f"{str(delta.seconds)} Sekunden"
         return "Not completed"
 
     def get_status(self):
         """Gibt den aktuellen Status zurück."""
         return {
             "Step": self.name,
-            "Outcome": self.outcome if self.outcome else "Running",
+            "Outcome": self.outcome or "Running",
             "Time Taken": self.get_time_taken(),
             "Timestamp": self.start_time.strftime("%H:%M:%S") if self.start_time else "N/A",
         }
@@ -78,10 +78,9 @@ def list_directory_contents(directory):
     for item in os.listdir(directory):
         # Markiere Ordner mit einem Schrägstrich am Ende
         if os.path.isdir(os.path.join(directory, item)):
-            contents.append(item + "/")
-        else:
-            if item.endswith(".py"):  # Nur Python-Dateien anzeigen
-                contents.append(item)
+            contents.append(f"{item}/")
+        elif item.endswith(".py"):  # Nur Python-Dateien anzeigen
+            contents.append(item)
     return contents
 
 def update_directory_list(directory, add_to_history=True):
@@ -99,8 +98,7 @@ def update_directory_list(directory, add_to_history=True):
     dir_label.config(text=f"Aktuelles Verzeichnis: {directory}")
     # Statusanzeige zurücksetzen
     status_label.config(text="")
-    pipeline = getattr(root, 'pipeline', None)
-    if pipeline:
+    if pipeline := getattr(root, 'pipeline', None):
         pipeline.steps = []
         pipeline.display_status()
 

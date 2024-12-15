@@ -65,7 +65,7 @@ def call_llm_for_annotations(prompt):
         else:
             raise ValueError("Keine Antwort vom LLM erhalten.")
     except Exception as e:
-        raise RuntimeError(f"Fehler beim LLM-Aufruf: {e}")
+        raise RuntimeError(f"Fehler beim LLM-Aufruf: {e}") from e
 
 def insert_type_annotations(original_code, llm_response):
     """
@@ -93,10 +93,10 @@ def insert_type_annotations(original_code, llm_response):
 
                         # Update return type annotation
                         node.returns = llm_node.returns
-        
+
         return astor.to_source(original_ast)
     except Exception as e:
-        raise RuntimeError(f"Fehler beim Einfügen der Typannotationen: {e}")
+        raise RuntimeError(f"Fehler beim Einfügen der Typannotationen: {e}") from e
 
 def save_code_with_annotations(file_path, updated_code):
     """Speichert den Code mit den neuen Typannotationen."""
