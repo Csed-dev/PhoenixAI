@@ -69,7 +69,7 @@ pipdeptree-project-windows:
 	
 # Generate pipdeptree for all projects -> WINDOWS powershell
 pipdeptree-all-windows:
-	@powershell -File "./generate_pipdeptree_all.ps1" -BaseDir "$(BASE_DIR_W_DOT)" -PipPath "$(PIP_W)" -PythonPath "$(PYTHON_W)"
+	powershell -File "./generate_pipdeptree_all.ps1" -BaseDir "$(BASE_DIR_W_DOT)"
 	
 # Generate pipdeptree for a single project with a provided name
 pipdeptree-project:
