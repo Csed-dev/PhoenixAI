@@ -39,7 +39,7 @@ def main():
     """Hauptfunktion, um Sourcery-Fix auf eine gegebene Datei auszuführen."""
     file_path = "phoenixai\\transformation\\base_prompt_handling.py"
 
-    if success := run_sourcery_fix(file_path, sourcery_token):
+    if success := run_sourcery_fix(file_path):
         print(f"Sourcery hat '{file_path}' erfolgreich korrigiert.")
     else:
         print(f"Sourcery konnte '{file_path}' nicht korrigieren.")
