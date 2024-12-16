@@ -13,8 +13,7 @@ selected_file = None
 
 
 def remove_pipeline_step(event, pipeline_tree, pipeline):
-    selected_item = pipeline_tree.selection()
-    if selected_item:
+    if selected_item := pipeline_tree.selection():
         # Ermitteln Sie den Index des ausgewählten Elements
         try:
             step_index = int(selected_item[0]) - 1  # Treeview-IDs beginnen bei 1
@@ -28,8 +27,7 @@ def remove_pipeline_step(event, pipeline_tree, pipeline):
 
 
 def show_pipeline_menu(event, pipeline_tree, pipeline_menu):
-    selected_item = pipeline_tree.identify_row(event.y)
-    if selected_item:
+    if selected_item := pipeline_tree.identify_row(event.y):
         pipeline_tree.selection_set(selected_item)
         pipeline_menu.post(event.x_root, event.y_root)
 
@@ -117,6 +115,7 @@ def navigate_forward(dir_listbox, dir_label, pipeline):
         update_directory_list(next_directory, dir_listbox, dir_label, pipeline)
     else:
         showinfo("Info", "Keine weiteren Verzeichnisse in der Historie.")
+
 
 
 def build_gui():

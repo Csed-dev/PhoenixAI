@@ -130,18 +130,15 @@ def _update_function_and_class_docstrings(original_ast, llm_ast):
                     isinstance(llm_node, (ast.FunctionDef, ast.ClassDef))
                     and node.name == llm_node.name
                 ):
-                    new_docstring = ast.get_docstring(llm_node)
-                    if new_docstring:
+                    if new_docstring := ast.get_docstring(llm_node):
                         node.body = [
                             ast.Expr(value=ast.Constant(value=new_docstring))
                         ] + [
                             n
                             for n in node.body
                             if not isinstance(n, ast.Expr)
-                            or not (
-                                isinstance(n.value, ast.Constant)
-                                and isinstance(n.value.value, str)
-                            )
+                            or not isinstance(n.value, ast.Constant)
+                            or not isinstance(n.value.value, str)
                         ]
 
 
@@ -172,7 +169,7 @@ def _insert_docstrings_to_code(original_code, llm_response):
     except Exception as e:
         raise RuntimeError(
             f"[Docstring-Updater] Fehler beim Einfügen der Docstrings: {e}"
-        )
+        ) from e
 
 
 def process_file_for_docstrings(file_path, max_retries=5):

@@ -108,14 +108,14 @@ class Pipeline:
 
 def run_pylint(file_path):
     """Führt Pylint aus und gibt die Ergebnisse aus."""
-
-
+    with open(file_path, "r", encoding="utf-8") as f:
+        code_content = f.read()
+    iterative_process_with_pylint(file_path, code_content, 1)
 
 def run_sonarqube(file_path):
     """Führt SonarQube-Analyse aus (Platzhalter für echte Integration)."""
     print(f"SonarQube wird ausgeführt für: {file_path}")
     # Hier könnte die SonarQube CLI oder eine API-Integration implementiert werden
-    time.sleep(1)
 
 
 def run_black(file_path):
@@ -132,33 +132,26 @@ def move_imports(file_path):
     """Sortiert und verschiebt die Imports in der Datei."""
     print(f"Importe werden für {file_path} verschoben und formatiert.")
     collect_imports_and_format(file_path)
-    time.sleep(1)
 
 
 def run_refactor(file_path):
     """Führt eine Refaktorisierung durch."""
-    try:
-        print(f"Refactor wird ausgeführt für: {file_path}")
-        # Hier kannst du spezifische Zeilennummern angeben, falls du nur bestimmte Funktionen refaktorisieren willst.
-        process_refactoring(file_path, line_numbers=[])
-        print(f"Refaktorisierung abgeschlossen für: {file_path}")
-    except Exception as e:
-        print(f"Fehler bei der Refaktorisierung von {file_path}: {e}")
-
+    print(f"Refactor wird ausgeführt für: {file_path}")
+    # Hier kannst du spezifische Zeilennummern angeben, falls du nur bestimmte Funktionen refaktorisieren willst.
+    process_refactoring(file_path, line_numbers=[])
+    print(f"Refaktorisierung abgeschlossen für: {file_path}")
 
 
 def multi_chain_comparison(file_path):
     """Führt Multi-Chain-Vergleiche mit einem LLM durch."""
     print(f"Multi Chain Comparison wird ausgeführt für: {file_path}")
     # Beispielhafte Implementierung kann Multi-Temperaturen-Prozesse starten
-    time.sleep(1)
 
 
 def add_improve_docstrings(file_path):
     """Fügt Docstrings hinzu oder verbessert bestehende."""
     print(f"Docstrings werden hinzugefügt/verbessert für: {file_path}")
     process_file_for_docstrings(file_path)
-    time.sleep(1)
 
 
 def run_sourcery(file_path):
@@ -166,21 +159,19 @@ def run_sourcery(file_path):
     print(f"Sourcery wird ausgeführt für: {file_path}")
     if not run_sourcery_fix(file_path):
         print(f"Sourcery konnte keine Verbesserungen für {file_path} durchführen.")
-    time.sleep(1)
+    print(f"Sourcery wurde erfolgreich ausgeführt für: {file_path}")
 
 
 def custom_prompt(file_path):
     """Führt eine benutzerdefinierte Aktion mit einem LLM durch."""
     print(f"Custom Prompt wird für {file_path} durchgeführt.")
     # Integration eines generativen Modells für benutzerdefinierte Prompts
-    time.sleep(1)
 
 
 def run_type_annotation_updater(file_path):
     """Fügt Typannotationen hinzu oder aktualisiert diese."""
     print(f"Typannotationen werden aktualisiert für: {file_path}")
     annotation_process_file(file_path)
-    time.sleep(1)
 
 
 action_functions = {
