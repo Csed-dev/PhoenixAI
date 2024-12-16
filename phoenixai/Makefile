@@ -62,29 +62,14 @@ pipdeptree-project-windows:
 			Write-Host 'requirements.txt generated for $(PROJECT).'; \
 		} \
 		Write-Host 'Generating pip dependency tree for $(PROJECT)...'; \
-		Set-Location '$(BASE_DIR_W_DOT)\$(PROJECT)'; \
+		Set-Location '$(CURDIR)/$(BASE_DIR_W)/$(PROJECT)'; \
 		& '$(PYTHON-W)' -m pipdeptree --graph-output svg > dependencies.svg; \
 		Write-Host 'Dependency tree generated for $(PROJECT) as dependencies.svg'; \
 	"
-
+	
 # Generate pipdeptree for all projects -> WINDOWS powershell
 pipdeptree-all-windows:
-	@powershell -Command " \
-		Get-ChildItem -Directory '$(BASE_DIR_W_DOT)' | ForEach-Object { \
-			Write-Host 'Processing project: $$_...'; \
-			$projectPath = $$_; \
-			if (!(Test-Path \"$($projectPath.FullName)\requirements.txt\")) { \
-				Write-Host 'No requirements.txt found. Generating it with pip list...'; \
-				Set-Location $projectPath.FullName; \
-				& '$(PIP-W)' list --format=freeze > requirements.txt; \
-				Write-Host 'requirements.txt generated for $($projectPath.Name).'; \
-			} \
-			Write-Host 'Generating pip dependency tree for $($projectPath.Name)...'; \
-			Set-Location $projectPath.FullName; \
-			& '$(PYTHON-W)' -m pipdeptree --graph-output svg > dependencies.svg; \
-			Write-Host 'Dependency tree generated for $($projectPath.Name) as dependencies.svg'; \
-		} \
-	"
+	@powershell -File "./generate_pipdeptree_all.ps1" -BaseDir "$(BASE_DIR_W_DOT)" -PipPath "$(PIP_W)" -PythonPath "$(PYTHON_W)"
 	
 # Generate pipdeptree for a single project with a provided name
 pipdeptree-project:
