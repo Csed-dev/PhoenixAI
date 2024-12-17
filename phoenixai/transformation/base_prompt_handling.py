@@ -156,7 +156,7 @@ def save_code_to_file(file_path, improved_code, iteration=None):
 
     Returns:
         str: The path to the saved file."""
-    if iteration is not None:
+    if iteration > 1:
         base_name, ext = os.path.splitext(file_path)
         new_file_path = f"{base_name}_improved_{iteration}{ext}"
     else:

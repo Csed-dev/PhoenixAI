@@ -1,11 +1,13 @@
 import time
 from tkinter.messagebox import showinfo
 
+import os
+
 from add_docstrings import process_file_for_docstrings
 from base_prompt_handling import apply_isort_to_file, format_file_with_black
 from imports_sort import collect_imports_and_format
 from pylint_workflow import iterative_process_with_pylint
-from refactor import process_refactoring
+from refactor import process_refactoring,extract_functions
 from sourcery_quick_fix import run_sourcery_fix
 from typ_annotation_updater import annotation_process_file
 
@@ -81,8 +83,21 @@ class Pipeline:
             )
 
     def args_or_default(self, step):
-        """Hilfsfunktion, um das erste Argument (Dateipfad) anzuzeigen oder 'N/A'."""
-        return step.args[0] if step.args else "N/A"
+        if step.args:
+            full_path = step.args[0]
+            parts = full_path.split(os.sep)
+
+            # Wenn es mehr als 4 Teile gibt (z.B. ['home', 'user', 'projekt', 'unterordner', 'datei.py']),
+            # dann zeige nur die letzten 4 Segmente (3 Ordner + Dateiname).
+            # Bei weniger wird nichts verändert.
+            if len(parts) > 4:
+                truncated_path = os.path.join(*parts[-4:])
+            else:
+                truncated_path = full_path
+
+            return truncated_path
+        else:
+            return "N/A"
 
     def run_next_step(self):
         """
@@ -91,13 +106,13 @@ class Pipeline:
         """
         if self.current_step < len(self.steps):
             step = self.steps[self.current_step]
+            step.status = "Running..."
+            self.display_status()
+            self.treeview.update_idletasks()
+
             step.run()
             self.display_status()
             self.current_step += 1
-            if self.current_step == len(self.steps):
-                showinfo("Pipeline abgeschlossen", "Alle Schritte wurden erfolgreich ausgeführt.")
-        else:
-            showinfo("Info", "Keine weiteren Schritte auszuführen.")
 
     def reset(self):
         """Setzt die Pipeline zurück."""
@@ -114,7 +129,7 @@ def run_pylint(file_path):
 
 def run_sonarqube(file_path):
     """Führt SonarQube-Analyse aus (Platzhalter für echte Integration)."""
-    print(f"SonarQube wird ausgeführt für: {file_path}")
+    print(f"[Pipeline] SonarQube wird ausgeführt für: {file_path}")
     # Hier könnte die SonarQube CLI oder eine API-Integration implementiert werden
 
 
@@ -130,36 +145,46 @@ def run_isort(file_path):
 
 def move_imports(file_path):
     """Sortiert und verschiebt die Imports in der Datei."""
-    print(f"Importe werden für {file_path} verschoben und formatiert.")
+    print(f"[Pipeline] Importe werden für {file_path} verschoben und formatiert.")
     collect_imports_and_format(file_path)
 
 
-def run_refactor(file_path):
-    """Führt eine Refaktorisierung durch."""
-    print(f"Refactor wird ausgeführt für: {file_path}")
-    # Hier kannst du spezifische Zeilennummern angeben, falls du nur bestimmte Funktionen refaktorisieren willst.
-    process_refactoring(file_path, line_numbers=[])
-    print(f"Refaktorisierung abgeschlossen für: {file_path}")
+def run_refactor(file_path, line_number=None):
+    """
+    Führt eine Refaktorisierung für eine einzelne Funktion an der angegebenen Zeilennummer durch.
+    Wenn line_number None ist, werden alle Funktionen ermittelt und müssen einzeln hinzugefügt werden.
+    """
+    if line_number is None:
+        # Hier könnte man optional alle Funktionen ermitteln und einzeln Schritte anlegen
+        # Dies hängt vom GUI-Fluss ab. Wenn das GUI bereits einzeln pro Funktion Schritte hinzufügt,
+        # dann ist dieser Zweig eventuell gar nicht notwendig.
+        all_funcs = extract_functions(file_path)
+        for func in all_funcs:
+            print(f"[Pipeline] Füge separaten Schritt hinzu für Funktion in Zeile: {func['start_line']}")
+            # Dieser Code würde im GUI ausgeführt, nicht hier. Hier nur ein Hinweis.
+        return
+    print(f"[Pipeline] Refactor wird ausgeführt für: {file_path}, Funktion bei Zeile {line_number}")
+    process_refactoring(file_path, line_number=line_number)
 
 
 def multi_chain_comparison(file_path):
     """Führt Multi-Chain-Vergleiche mit einem LLM durch."""
-    print(f"Multi Chain Comparison wird ausgeführt für: {file_path}")
+    print(f"[Pipeline] Multi Chain Comparison wird ausgeführt für: {file_path}")
     # Beispielhafte Implementierung kann Multi-Temperaturen-Prozesse starten
 
 
 def add_improve_docstrings(file_path):
     """Fügt Docstrings hinzu oder verbessert bestehende."""
-    print(f"Docstrings werden hinzugefügt/verbessert für: {file_path}")
+    print(f"[Pipeline ]Docstrings werden hinzugefügt/verbessert für: {file_path}")
     process_file_for_docstrings(file_path)
 
 
 def run_sourcery(file_path):
     """Optimiert den Code mit Sourcery."""
-    print(f"Sourcery wird ausgeführt für: {file_path}")
+    print(f"[Pipeline] Sourcery wird ausgeführt für: {file_path}")
     if not run_sourcery_fix(file_path):
-        print(f"Sourcery konnte keine Verbesserungen für {file_path} durchführen.")
-    print(f"Sourcery wurde erfolgreich ausgeführt für: {file_path}")
+        print(f"[Pipeline] Sourcery konnte keine Verbesserungen für {file_path} durchführen.")
+    print(f"[Pipeline] Sourcery wurde erfolgreich ausgeführt für: {file_path}")
 
 
 def custom_prompt(file_path):
@@ -170,7 +195,7 @@ def custom_prompt(file_path):
 
 def run_type_annotation_updater(file_path):
     """Fügt Typannotationen hinzu oder aktualisiert diese."""
-    print(f"Typannotationen werden aktualisiert für: {file_path}")
+    print(f"[Pipeline] Typannotationen werden aktualisiert für: {file_path}")
     annotation_process_file(file_path)
 
 

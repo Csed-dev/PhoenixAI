@@ -1,8 +1,37 @@
 import ast
-import re
 
 import astor
 from base_prompt_handling import save_code_to_file, trim_code,parse_ast, call_llm, read_file
+
+
+def extract_functions(file_path):
+    """
+    Extrahiert alle Funktionen aus einer Python-Datei.
+
+    Parameters:
+    - file_path (str): Der Pfad zur Python-Datei.
+
+    Returns:
+    - list of dict: Eine Liste von Dictionaries mit 'name', 'start_line' und 'end_line' für jede Funktion.
+    """
+    with open(file_path, "r", encoding="utf-8") as f:
+        code = f.read()
+
+    parsed_ast = ast.parse(code)
+    functions = []
+
+    for node in parsed_ast.body:
+        if isinstance(node, ast.FunctionDef):
+            start_line = node.lineno
+            end_line = (
+                node.body[-1].end_lineno
+                if hasattr(node.body[-1], "end_lineno")
+                else node.lineno
+            )
+            functions.append(
+                {"name": node.name, "start_line": start_line, "end_line": end_line}
+            )
+    return functions
 
 
 def extract_function_by_line(file_path, line_number):
@@ -24,6 +53,7 @@ def extract_function_by_line(file_path, line_number):
                 return astor.to_source(node).strip(), start_line, end_line
 
     raise ValueError(f"Keine Funktion in der Zeile {line_number} gefunden.")
+
 
 
 def generate_refactoring_prompt(functions):
@@ -77,7 +107,7 @@ def identify_functions_to_remove(parsed_ast, line_numbers):
             )
             # Prüfe, ob die Funktion in den angegebenen Zeilennummern liegt
             if any(start_line <= (line - 1) <= end_line for line in line_numbers):
-                lines_to_delete.update(range(start_line, end_line + 1))
+                lines_to_delete.update(list(range(start_line, end_line + 1)))
     return lines_to_delete
 
 
@@ -137,8 +167,18 @@ def replace_function_in_code(lines, start_line, end_line, refactored_function):
     return lines[:start_line - 1] + [refactored_function] + lines[end_line:]
 
 
-def process_refactoring(file_path, line_numbers):
-    """Verarbeitet die Refaktorisierung der Funktionen an den angegebenen Zeilennummern."""
+def process_refactoring(file_path, line_number):
+    """
+    Verarbeitet die Refaktorisierung einer einzelnen Funktion an der angegebenen Zeilennummer.
+
+    Parameters:
+    - file_path (str): Pfad zur Datei, die refaktoriert wird
+    - line_number (int): Die Zeilennummer der Funktion, die refaktoriert werden soll
+    """
+    if line_number is None or not isinstance(line_number, int):
+        print("[Debug] line_number ist ungültig:", line_number)
+        return
+
     try:
         original_code = read_file(file_path)
         lines = original_code.splitlines()
@@ -152,21 +192,19 @@ def process_refactoring(file_path, line_numbers):
             function_code, start_line, end_line = extract_function_by_line(file_path, line_number)
             print(f"[Refactor] Funktion extrahiert: {function_code}")
 
-            # Generiere den Prompt und erhalte den refaktorierten Code
-            prompt = generate_refactoring_prompt([function_code])
-            refactored_code = call_llm(prompt)
-            print(f"[Refactor] LLM Antwort erhalten:\n{refactored_code}")
+        # Generiere den Prompt und erhalte den refaktorierten Code
+        prompt = generate_refactoring_prompt([function_code])
+        refactored_code = call_llm(prompt)
 
-            # Trim LLM-Antwort und validiere
-            trimmed_refactored_code = trim_code(refactored_code)
-            try:
-                ast.parse(trimmed_refactored_code)
-            except SyntaxError as e:
-                raise RuntimeError(f"[Refactor] Syntaxfehler im LLM-Code: {e}")
+        # Trim LLM-Antwort und validiere
+        trimmed_refactored_code = trim_code(refactored_code)
+        try:
+            ast.parse(trimmed_refactored_code)
+        except SyntaxError as e:
+            raise RuntimeError(f"[Refactor] Syntaxfehler im LLM-Code: {e}")
 
-            # Aktualisiere die Zeilen dynamisch
-            lines = replace_function_in_code(lines, start_line, end_line, trimmed_refactored_code)
-            print(f"[Refactor] Funktion aktualisiert in Zeilen {start_line}-{end_line}")
+        # Aktualisiere die Zeilen dynamisch
+        lines = replace_function_in_code(lines, start_line, end_line, trimmed_refactored_code)
 
         # Speichere den Code nach der Refaktorisierung
         updated_code = "\n".join(lines)

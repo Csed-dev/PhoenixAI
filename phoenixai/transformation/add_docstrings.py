@@ -191,9 +191,6 @@ def process_file_for_docstrings(file_path, max_retries=5):
             llm_response = call_llm(prompt)
             last_llm_response = llm_response
             trimmed_code = trim_code(llm_response)
-            print(
-                "[Docstring-Updater] [Debug] Überprüfe die Gültigkeit des zurückgegebenen Codes..."
-            )
             ast.parse(trimmed_code)
             updated_code = _insert_docstrings_to_code(original_code, trimmed_code)
             save_code_to_file(file_path, updated_code)

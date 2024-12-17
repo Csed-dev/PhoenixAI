@@ -1,8 +1,8 @@
-import ast
 import os
 import tkinter as tk
 from tkinter import END, ttk
 from tkinter.messagebox import showerror, showinfo
+from refactor import extract_functions
 
 from pipeline import Pipeline, action_functions
 
@@ -57,35 +57,6 @@ def update_directory_list(directory, dir_listbox, dir_label, pipeline):
     pipeline.reset()
 
 
-def extract_functions(file_path):
-    """
-    Extrahiert alle Funktionen aus einer Python-Datei.
-
-    Parameters:
-    - file_path (str): Der Pfad zur Python-Datei.
-
-    Returns:
-    - list of dict: Eine Liste von Dictionaries mit 'name', 'start_line' und 'end_line' für jede Funktion.
-    """
-    with open(file_path, "r", encoding="utf-8") as f:
-        code = f.read()
-
-    parsed_ast = ast.parse(code)
-    functions = []
-
-    for node in parsed_ast.body:
-        if isinstance(node, ast.FunctionDef):
-            start_line = node.lineno
-            end_line = (
-                node.body[-1].end_lineno
-                if hasattr(node.body[-1], "end_lineno")
-                else node.lineno
-            )
-            functions.append(
-                {"name": node.name, "start_line": start_line, "end_line": end_line}
-            )
-    return functions
-
 
 def navigate_up(dir_listbox, dir_label, pipeline):
     """Navigiert ein Verzeichnis nach oben."""
@@ -121,7 +92,7 @@ def navigate_forward(dir_listbox, dir_label, pipeline):
 def build_gui():
     root = tk.Tk()
     root.title("Python Refactoring Tool")
-    root.geometry("900x700")
+    root.geometry("800x800")
     root.resizable(False, False)
 
     style = ttk.Style(root)
@@ -168,14 +139,14 @@ def build_gui():
     actions_frame.columnconfigure(0, weight=1)
 
     actions = [
+        "Refactor",
         "Add/Improve Docstrings",
         "Type Annotation Updater",
-        "Sourcery",
-        "Refactor",
-        "Black",
-        "Isort",
-        "Pylint",
         "Move Imports",
+        "Isort",
+        "Black",
+        "Pylint",
+        "Sourcery",
     ]
 
     action_vars = {}
@@ -267,9 +238,7 @@ def build_gui():
                 function = action_functions.get(action)
                 if function:
                     pipeline.add_step(action, function, selected_file)
-            showinfo(
-                "Info", "Die ausgewählten Aktionen wurden der Pipeline hinzugefügt."
-            )
+
 
     def show_functions_selection(file_path, root, pipeline, action_vars, pipeline_tree):
         """
@@ -279,9 +248,6 @@ def build_gui():
         - file_path (str): Der Pfad zur Python-Datei.
         """
         functions = extract_functions(file_path)
-        if not functions:
-            showinfo("Info", "Keine Funktionen in der ausgewählten Datei gefunden.")
-            return
 
         selection_window = tk.Toplevel(root)
         selection_window.title("Funktionen auswählen zur Refaktorisierung")
@@ -327,20 +293,14 @@ def build_gui():
             selected_functions = [
                 name for name, info in var_dict.items() if info["variable"].get()
             ]
-            if not selected_functions:
-                showinfo("Info", "Keine Funktionen ausgewählt für Refaktorisierung.")
-                return
 
+            # Für jede ausgewählte Funktion wird nun ein eigener Schritt hinzugefügt.
             for func_name in selected_functions:
                 # Hier könntest du zusätzliche Informationen wie Start- und Endzeilen verwenden
                 pipeline.add_step(
                     "Refactor", action_functions["Refactor"], selected_file
                 )
 
-            showinfo(
-                "Info",
-                "Die ausgewählten Refactor-Aktionen wurden der Pipeline hinzugefügt.",
-            )
             selection_window.destroy()
 
         confirm_button = ttk.Button(
