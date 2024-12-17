@@ -286,21 +286,23 @@ def build_gui():
                 "end_line": func["end_line"],
             }
 
+        # In gui.py, in der Funktion confirm_refactor_selection():
         def confirm_refactor_selection():
-            """
-            Bestätigt die Auswahl der zu refaktorisierenden Funktionen und fügt Refactor-Schritte hinzu.
-            """
             selected_functions = [
                 name for name, info in var_dict.items() if info["variable"].get()
             ]
+            if not selected_functions:
+                showinfo("Info", "Keine Funktionen ausgewählt für Refaktorisierung.")
+                return
 
-            # Für jede ausgewählte Funktion wird nun ein eigener Schritt hinzugefügt.
-            for func_name in selected_functions:
-                # Hier könntest du zusätzliche Informationen wie Start- und Endzeilen verwenden
-                pipeline.add_step(
-                    "Refactor", action_functions["Refactor"], selected_file
-                )
+            # line_numbers wird nicht mehr benötigt, da wir die gesamte Datei refaktorisieren
+            # pipeline.add_step("Refactor", action_functions["Refactor"], selected_file, line_numbers=line_numbers)
+            pipeline.add_step("Refactor", action_functions["Refactor"], selected_file)
 
+            showinfo(
+                "Info",
+                "Die ausgewählten Refactor-Aktionen wurden der Pipeline hinzugefügt."
+            )
             selection_window.destroy()
 
         confirm_button = ttk.Button(

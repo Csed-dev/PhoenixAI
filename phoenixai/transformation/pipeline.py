@@ -149,22 +149,10 @@ def move_imports(file_path):
     collect_imports_and_format(file_path)
 
 
-def run_refactor(file_path, line_number=None):
-    """
-    Führt eine Refaktorisierung für eine einzelne Funktion an der angegebenen Zeilennummer durch.
-    Wenn line_number None ist, werden alle Funktionen ermittelt und müssen einzeln hinzugefügt werden.
-    """
-    if line_number is None:
-        # Hier könnte man optional alle Funktionen ermitteln und einzeln Schritte anlegen
-        # Dies hängt vom GUI-Fluss ab. Wenn das GUI bereits einzeln pro Funktion Schritte hinzufügt,
-        # dann ist dieser Zweig eventuell gar nicht notwendig.
-        all_funcs = extract_functions(file_path)
-        for func in all_funcs:
-            print(f"[Pipeline] Füge separaten Schritt hinzu für Funktion in Zeile: {func['start_line']}")
-            # Dieser Code würde im GUI ausgeführt, nicht hier. Hier nur ein Hinweis.
-        return
-    print(f"[Pipeline] Refactor wird ausgeführt für: {file_path}, Funktion bei Zeile {line_number}")
-    process_refactoring(file_path, line_number=line_number)
+def run_refactor(file_path):
+    print(f"[Pipeline] Refactor wird ausgeführt für die gesamte Datei: {file_path}")
+    process_refactoring(file_path)
+    print(f"[Pipeline] Refaktorisierung abgeschlossen für: {file_path}")
 
 
 def multi_chain_comparison(file_path):

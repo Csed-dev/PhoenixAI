@@ -3,15 +3,11 @@ import json
 import os
 import random
 
+"""Module for managing and processing data."""
+
 
 def manage_user_data(file_path, user_data):
-    """
-    Manages user data.
-    Tasks:
-    1. Checks if the file exists; if not, creates a new file with default data.
-    2. Appends new user data to the file.
-    3. Prints the total number of users in the file.
-    """
+    """Manages user data."""
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump([], f)
@@ -25,13 +21,7 @@ def manage_user_data(file_path, user_data):
 
 
 def process_orders(orders):
-    """
-    Processes a list of orders.
-    Tasks:
-    1. Calculates the total revenue from all orders.
-    2. Identifies and prints the most expensive order.
-    3. Prints the number of orders that exceed a given threshold (e.g., $100).
-    """
+    """Processes a list of orders."""
     if not orders:
         print("No orders to process.")
         return
@@ -44,13 +34,7 @@ def process_orders(orders):
 
 
 def generate_random_data(file_path):
-    """
-    Generates random data for testing.
-    Tasks:
-    1. Creates a file with random user profiles.
-    2. Calculates and prints the average age of generated users.
-    3. Logs the operation with a timestamp.
-    """
+    """Generates random data for testing."""
     user_profiles = [
         {"name": f"User{random.randint(1, 1000)}", "age": random.randint(18, 60)}
         for _ in range(10)
@@ -65,13 +49,7 @@ def generate_random_data(file_path):
 
 
 def analyze_weather_data(data):
-    """
-    Analyzes weather data.
-    Tasks:
-    1. Calculates and prints the average temperature.
-    2. Identifies and prints the day with the highest temperature.
-    3. Counts and prints the number of days with rain.
-    """
+    """Analyzes weather data."""
     if not data:
         print("No weather data provided.")
         return
