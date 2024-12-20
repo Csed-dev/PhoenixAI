@@ -1,8 +1,8 @@
 import ast
+import re
 
 import astor
 from base_prompt_handling import save_code_to_file, trim_code,parse_ast, call_llm, read_file
-
 
 def extract_functions(file_path):
     """
@@ -53,7 +53,6 @@ def extract_function_by_line(file_path, line_number):
                 return astor.to_source(node).strip(), start_line, end_line
 
     raise ValueError(f"Keine Funktion in der Zeile {line_number} gefunden.")
-
 
 
 def generate_refactoring_prompt(functions):
@@ -107,7 +106,7 @@ def identify_functions_to_remove(parsed_ast, line_numbers):
             )
             # Prüfe, ob die Funktion in den angegebenen Zeilennummern liegt
             if any(start_line <= (line - 1) <= end_line for line in line_numbers):
-                lines_to_delete.update(list(range(start_line, end_line + 1)))
+                lines_to_delete.update(range(start_line, end_line + 1))
     return lines_to_delete
 
 
@@ -167,20 +166,38 @@ def replace_function_in_code(lines, start_line, end_line, refactored_function):
     return lines[:start_line - 1] + [refactored_function] + lines[end_line:]
 
 
-def process_refactoring(file_path):
-    """
-    Verarbeitet die Refaktorisierung einer einzelnen Funktion an der angegebenen Zeilennummer.
-
-    Parameters:
-    - file_path (str): Pfad zur Datei, die refaktoriert wird
-    - line_number (int): Die Zeilennummer der Funktion, die refaktoriert werden soll
-    """
+def process_refactoring(file_path, line_numbers):
+    """Verarbeitet die Refaktorisierung der Funktionen an den angegebenen Zeilennummern."""
     try:
         original_code = read_file(file_path)
-        prompt = generate_refactoring_prompt(original_code)
-        llm_response = call_llm(prompt)
-        trimmed_llm_code = trim_code(llm_response)
-        save_code_to_file(file_path, trimmed_llm_code)
-        print(f"[Refactor] Datei {file_path} refaktoriert und gespeichert.")
+        lines = original_code.splitlines()
+
+        # Sortiere Zeilennummern absteigend, um Änderungen rückwärts vorzunehmen
+        sorted_line_numbers = sorted(line_numbers, reverse=True)
+
+        for line_number in sorted_line_numbers:
+            # Extrahiere die Funktion und ihre Position
+            function_code, start_line, end_line = extract_function_by_line(file_path, line_number)
+
+            # Generiere den Prompt und erhalte den refaktorierten Code
+            prompt = generate_refactoring_prompt([function_code])
+            refactored_code = call_llm(prompt)
+
+            # Trim LLM-Antwort und validiere
+            trimmed_refactored_code = trim_code(refactored_code)
+            try:
+                ast.parse(trimmed_refactored_code)
+            except SyntaxError as e:
+                raise RuntimeError(f"[Refactor] Syntaxfehler im LLM-Code: {e}")
+
+            # Aktualisiere die Zeilen dynamisch
+            lines = replace_function_in_code(lines, start_line, end_line, trimmed_refactored_code)
+
+        # Speichere den Code nach der Refaktorisierung
+        updated_code = "\n".join(lines)
+        save_code_to_file(file_path, updated_code)
+
+    except ValueError as e:
+        print(f"[Refactor] Fehler beim Verarbeiten der Datei: {e}")
     except Exception as e:
-        print(f"[Refactor] Fehler beim Refaktorieren der Datei {file_path}: {e}")
+        print(f"[Refactor] Unerwarteter Fehler: {e}")

@@ -43,11 +43,17 @@ def list_directory_contents(directory):
     return contents
 
 
-def update_directory_list(directory, dir_listbox, dir_label, pipeline):
+def update_directory_list(directory, dir_listbox, dir_label, pipeline, add_to_history=True):
     """Aktualisiert die Liste der Dateien und Ordner in der GUI."""
-    global current_directory
-    back_history.append(current_directory)
-    forward_history.clear()
+    global current_directory, back_history, forward_history
+
+    if add_to_history:
+        back_history.append(current_directory)
+
+    # Nur löschen, wenn der Benutzer nicht über Vorwärts navigiert
+    if add_to_history and current_directory != directory:
+        forward_history.clear()
+
     current_directory = directory
     dir_listbox.delete(0, END)
     contents = list_directory_contents(directory)
@@ -55,6 +61,7 @@ def update_directory_list(directory, dir_listbox, dir_label, pipeline):
         dir_listbox.insert(END, item)
     dir_label.config(text=f"Aktuelles Verzeichnis: {directory}")
     pipeline.reset()
+
 
 
 
@@ -73,9 +80,10 @@ def navigate_back(dir_listbox, dir_label, pipeline):
     if back_history:
         forward_history.append(current_directory)
         previous_directory = back_history.pop()
-        update_directory_list(previous_directory, dir_listbox, dir_label, pipeline)
+        update_directory_list(previous_directory, dir_listbox, dir_label, pipeline, add_to_history=False)
     else:
         showinfo("Info", "Keine vorherigen Verzeichnisse in der Historie.")
+
 
 def navigate_forward(dir_listbox, dir_label, pipeline):
     """Navigiert zum nächsten Verzeichnis in der Historie."""
@@ -83,16 +91,17 @@ def navigate_forward(dir_listbox, dir_label, pipeline):
     if forward_history:
         back_history.append(current_directory)
         next_directory = forward_history.pop()
-        update_directory_list(next_directory, dir_listbox, dir_label, pipeline)
+        update_directory_list(next_directory, dir_listbox, dir_label, pipeline, add_to_history=False)
     else:
         showinfo("Info", "Keine weiteren Verzeichnisse in der Historie.")
+
 
 
 
 def build_gui():
     root = tk.Tk()
     root.title("Python Refactoring Tool")
-    root.geometry("800x800")
+    root.geometry("825x800")
     root.resizable(False, False)
 
     style = ttk.Style(root)
@@ -175,7 +184,7 @@ def build_gui():
     pipeline_tree.heading("Duration", text="Duration")
     pipeline_tree.column("Status", width=100, anchor="center")
     pipeline_tree.column("Aktion", width=200, anchor="w")
-    pipeline_tree.column("Datei", width=400, anchor="w")
+    pipeline_tree.column("Datei", width=350, anchor="w")
     pipeline_tree.column("Duration", width=100, anchor="center")
     pipeline_tree.pack(fill="both", expand=True)
 
@@ -216,9 +225,6 @@ def build_gui():
     def confirm_actions():
         """Bestätigt die ausgewählten Aktionen und handelt entsprechend."""
         chosen_actions = [name for name, var in action_vars.items() if var.get()]
-        if not chosen_actions:
-            showinfo("Info", "Keine Aktionen ausgewählt.")
-            return
 
         if "Refactor" in chosen_actions:
             # Entferne "Refactor" aus den allgemeinen Aktionen
@@ -291,18 +297,13 @@ def build_gui():
             selected_functions = [
                 name for name, info in var_dict.items() if info["variable"].get()
             ]
-            if not selected_functions:
-                showinfo("Info", "Keine Funktionen ausgewählt für Refaktorisierung.")
-                return
 
-            # line_numbers wird nicht mehr benötigt, da wir die gesamte Datei refaktorisieren
-            # pipeline.add_step("Refactor", action_functions["Refactor"], selected_file, line_numbers=line_numbers)
-            pipeline.add_step("Refactor", action_functions["Refactor"], selected_file)
+            # Sammle alle Startzeilen der ausgewählten Funktionen in einer Liste
+            line_numbers = [var_dict[name]["start_line"] for name in selected_functions]
 
-            showinfo(
-                "Info",
-                "Die ausgewählten Refactor-Aktionen wurden der Pipeline hinzugefügt."
-            )
+            # Nur EINEN Pipeline-Schritt für alle ausgewählten Funktionen hinzufügen
+            pipeline.add_step("Refactor", action_functions["Refactor"], selected_file, line_numbers=line_numbers)
+
             selection_window.destroy()
 
         confirm_button = ttk.Button(
@@ -341,11 +342,11 @@ def build_gui():
     def mouse_button_handler(event):
         on_mouse_button(event, dir_listbox, pipeline)
 
-    def on_mouse_button(event, dir_listbox, pipeline):
+    def on_mouse_button(event, dir_listbox, dir_label, pipeline):
         """Verarbeitet die Seitentasten der Maus."""
-        if event.num == 4:
+        if event.num == 4:  # Mausbutton "Zurück"
             navigate_back(dir_listbox, dir_label, pipeline)
-        elif event.num == 5:
+        elif event.num == 5:  # Mausbutton "Vorwärts"
             navigate_forward(dir_listbox, dir_label, pipeline)
 
     def run_next_step(pipeline):
@@ -357,6 +358,9 @@ def build_gui():
 
     start_button = ttk.Button(main_frame, text="Weiter", command=run_next_step_button)
     start_button.grid(row=5, column=0, sticky="e", padx=10, pady=10)
+
+    root.bind_all("<Button-4>", lambda event: on_mouse_button(event, dir_listbox, dir_label, pipeline))
+    root.bind_all("<Button-5>", lambda event: on_mouse_button(event, dir_listbox, dir_label, pipeline))
 
     # Kontextmenü zum Entfernen von Schritten
     def context_menu_handler(event):

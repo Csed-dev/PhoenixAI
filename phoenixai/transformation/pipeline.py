@@ -149,10 +149,17 @@ def move_imports(file_path):
     collect_imports_and_format(file_path)
 
 
-def run_refactor(file_path):
-    print(f"[Pipeline] Refactor wird ausgeführt für die gesamte Datei: {file_path}")
-    process_refactoring(file_path)
-    print(f"[Pipeline] Refaktorisierung abgeschlossen für: {file_path}")
+def run_refactor(file_path, line_numbers=None):
+    if line_numbers is None:
+        line_numbers = []
+
+    if not line_numbers:
+        # Wenn keine line_numbers angegeben, alle Funktionen ermitteln
+        all_funcs = extract_functions(file_path)
+        line_numbers = [func['start_line'] for func in all_funcs]
+
+    print(f"[Pipeline] Refactor wird ausgeführt für: {file_path} mit Funktionen in Zeilen {line_numbers}")
+    process_refactoring(file_path, line_numbers=line_numbers)
 
 
 def multi_chain_comparison(file_path):
@@ -163,7 +170,7 @@ def multi_chain_comparison(file_path):
 
 def add_improve_docstrings(file_path):
     """Fügt Docstrings hinzu oder verbessert bestehende."""
-    print(f"[Pipeline ]Docstrings werden hinzugefügt/verbessert für: {file_path}")
+    print(f"[Pipeline] Docstrings werden hinzugefügt/verbessert für: {file_path}")
     process_file_for_docstrings(file_path)
 
 
