@@ -1,15 +1,14 @@
 import time
-from tkinter.messagebox import showinfo
 
 import os
 
-from add_docstrings import process_file_for_docstrings
-from base_prompt_handling import apply_isort_to_file, format_file_with_black
-from imports_sort import collect_imports_and_format
-from pylint_workflow import iterative_process_with_pylint
-from refactor import process_refactoring,extract_functions
-from sourcery_quick_fix import run_sourcery_fix
-from typ_annotation_updater import annotation_process_file
+from phoenixai.pipeline_transformation.add_docstrings import process_file_for_docstrings
+from phoenixai.utils.base_prompt_handling import apply_isort_to_file, format_file_with_black
+from phoenixai.pipeline_transformation.imports_sort import collect_imports_and_format
+from phoenixai.pipeline_transformation.pylint_workflow import iterative_process_with_pylint
+from phoenixai.pipeline_transformation.refactor import process_refactoring,extract_functions
+from phoenixai.pipeline_transformation.sourcery_quick_fix import run_sourcery_fix
+from phoenixai.pipeline_transformation.typ_annotation_updater import annotation_process_file
 
 
 class PipelineStep:
