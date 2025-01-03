@@ -2,8 +2,8 @@ import logging
 
 from phoenixai.analysis.analyze import sonarqube_analysis
 
-from base_prompt_handling import (call_llm, generate_initial_prompt,
-                                  save_code_to_file, trim_code)
+from phoenixai.utils.base_prompt_handling import (call_llm, generate_initial_prompt,
+                                                  save_code_to_file, trim_code)
 
 
 def analyze_sonar_issues():

@@ -7,13 +7,13 @@ import sqlite3
 import re
 import os
 from typing import List, Tuple, Dict
-from base_prompt_handling import (
+from phoenixai.utils.base_prompt_handling import (
     generate_initial_prompt,
     call_llm,
     trim_code,
     save_code_to_file
 )
-from multi_chain_comparison import MultiChainComparison
+from phoenixai.pipeline_transformation.multi_chain_comparison import MultiChainComparison
 
 
 def setup_multichain_comparison(temperatures: List[float]) -> MultiChainComparison:

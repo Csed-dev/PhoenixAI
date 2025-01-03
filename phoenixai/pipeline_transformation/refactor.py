@@ -1,8 +1,7 @@
 import ast
-import re
 
 import astor
-from base_prompt_handling import save_code_to_file, trim_code,parse_ast, call_llm, read_file
+from phoenixai.utils.base_prompt_handling import save_code_to_file, trim_code,parse_ast, call_llm, read_file
 
 def extract_functions(file_path):
     """

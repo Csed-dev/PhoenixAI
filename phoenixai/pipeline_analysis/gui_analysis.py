@@ -1,417 +1,364 @@
+import os
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import END, ttk, messagebox
 from tkinter.scrolledtext import ScrolledText
+
 import threading
 import json
-import os
 
 from name_checker import NameChecker
 
-class AnalysisApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Analyse- und Empfehlungssystem")
-        self.geometry("825x800")
-        self.resizable(False, False)
+# ----------------------------------------
+#   Beispiel-Variablen und -Funktionen
+#   für die Pipeline-Schritte
+# ----------------------------------------
 
-        # Setze Theme analog zum Transformations-Tool
-        style = ttk.Style(self)
-        available_themes = style.theme_names()
-        if "vista" in available_themes:
-            style.theme_use("vista")
-        else:
-            style.theme_use("default")
+class AnalysisPipelineStep:
+    def __init__(self, name, function, *args, **kwargs):
+        self.name = name
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.status = "Pending"
+        self.duration = None
 
-        # Initialisiere Variablen
-        self.selected_files = []
-        self.pipeline_scripts = [
-            {"name": "Skript 1", "enabled": tk.BooleanVar(value=True)},
-            {"name": "Skript 2", "enabled": tk.BooleanVar(value=True)},
-            {"name": "Name Checker", "enabled": tk.BooleanVar(value=True)},
-            {"name": "Skript 4", "enabled": tk.BooleanVar(value=True)},
-        ]
-        self.current_step = 0
-        self.results = []
-        self.log_messages = []
-        self.is_running = False
-
-        # Hauptcontainer
-        self.main_frame = ttk.Frame(self)
-        self.main_frame.grid(row=0, column=0, sticky="nsew")
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-
-        self.create_widgets()
-
-    def create_widgets(self):
-        """
-        Erzeugt die GUI-Elemente in einer vertikalen Anordnung,
-        ähnlich dem Transformations-Tool.
-        """
-        # ============ Dateiauswahl (1. Bereich) ============
-        self.dateiauswahl_frame = ttk.LabelFrame(
-            self.main_frame, text="Dateien & Ordner auswählen", padding=(10, 10)
-        )
-        self.dateiauswahl_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10,5))
-
-        drop_area = tk.Label(
-            self.dateiauswahl_frame,
-            text="Drag & Drop Dateien hier",
-            relief="ridge",
-            borderwidth=2,
-            width=60,
-            height=3,
-        )
-        drop_area.grid(row=0, column=0, columnspan=2, pady=5, sticky="ew")
-        drop_area.bind("<Button-1>", self.browse_files)
-
-        browse_button = ttk.Button(
-            self.dateiauswahl_frame, text="Durchsuchen", command=self.browse_files
-        )
-        browse_button.grid(row=1, column=0, columnspan=2, pady=5, sticky="ew")
-
-        self.files_listbox = tk.Listbox(self.dateiauswahl_frame, height=8)
-        self.files_listbox.grid(row=2, column=0, columnspan=2, sticky="ew")
-
-        # ============ Pipeline Manager (2. Bereich) ============
-        self.pipeline_frame = ttk.LabelFrame(
-            self.main_frame, text="Pipeline-Manager", padding=(10, 10)
-        )
-        self.pipeline_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(5,5))
-
-        # Checkbuttons für Skripte
-        row_idx = 0
-        for script in self.pipeline_scripts:
-            cb = ttk.Checkbutton(
-                self.pipeline_frame, text=script["name"], variable=script["enabled"]
-            )
-            cb.grid(row=row_idx, column=0, sticky="w")
-            row_idx += 1
-
-        # Buttons zum Verschieben
-        reorder_frame = ttk.Frame(self.pipeline_frame)
-        reorder_frame.grid(row=row_idx, column=0, sticky="ew", pady=5)
-
-        move_up_button = ttk.Button(
-            reorder_frame, text="🡅 Nach oben", command=lambda: self.move_script(-1)
-        )
-        move_up_button.pack(side="left", expand=True, fill="x", padx=2)
-
-        move_down_button = ttk.Button(
-            reorder_frame, text="🡇 Nach unten", command=lambda: self.move_script(1)
-        )
-        move_down_button.pack(side="left", expand=True, fill="x", padx=2)
-
-        # ============ Analyse-Steuerung & Log (3. Bereich) ============
-        self.steuerung_frame = ttk.LabelFrame(
-            self.main_frame, text="Analyse-Steuerung & Live-Status", padding=(10, 10)
-        )
-        self.steuerung_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(5,5))
-
-        run_step_button = ttk.Button(
-            self.steuerung_frame, text="Analyse starten", command=self.start_analysis
-        )
-        run_step_button.grid(row=0, column=0, sticky="ew", pady=5)
-
-        self.log_label = ttk.Label(self.steuerung_frame, text="Live-Log der Analyse:")
-        self.log_label.grid(row=1, column=0, sticky="w")
-
-        self.log_text = ScrolledText(self.steuerung_frame, height=10, state="disabled")
-        self.log_text.grid(row=2, column=0, sticky="ew")
-
-        # Fortschrittsanzeige
-        self.progress_label = ttk.Label(self.steuerung_frame, text="Fortschritt:")
-        self.progress_label.grid(row=3, column=0, sticky="w", pady=(5,0))
-
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(
-            self.steuerung_frame, variable=self.progress_var, maximum=100
-        )
-        self.progress_bar.grid(row=4, column=0, sticky="ew", pady=5)
-
-        self.progress_percent = ttk.Label(self.steuerung_frame, text="0%")
-        self.progress_percent.grid(row=5, column=0, sticky="e")
-
-        # ============ Analyse-Ergebnisse (4. Bereich) ============
-        self.ergebnisse_frame = ttk.LabelFrame(
-            self.main_frame, text="Analyse-Ergebnisse & Empfehlungen", padding=(10, 10)
-        )
-        self.ergebnisse_frame.grid(row=3, column=0, sticky="nsew", padx=10, pady=(5,5))
-        self.main_frame.rowconfigure(3, weight=1)  # Ergebnisse können sich ausdehnen
-
-        columns = ("Script", "Ergebnis", "Status")
-        self.results_tree = ttk.Treeview(
-            self.ergebnisse_frame, columns=columns, show="headings"
-        )
-        for col in columns:
-            self.results_tree.heading(col, text=col)
-            self.results_tree.column(col, width=150, anchor="center")
-        self.results_tree.grid(row=0, column=0, columnspan=3, sticky="nsew")
-
-        tree_scrollbar = ttk.Scrollbar(
-            self.ergebnisse_frame, orient="vertical", command=self.results_tree.yview
-        )
-        self.results_tree.configure(yscrollcommand=tree_scrollbar.set)
-        tree_scrollbar.grid(row=0, column=3, sticky="ns")
-
-        # Buttons für Details, Vergleich und Export
-        details_button = ttk.Button(
-            self.ergebnisse_frame, text="Details anzeigen", command=self.show_details
-        )
-        details_button.grid(row=1, column=0, sticky="ew", padx=2, pady=5)
-
-        compare_button = ttk.Button(
-            self.ergebnisse_frame, text="Vergleichsansicht", command=self.compare_results
-        )
-        compare_button.grid(row=1, column=1, sticky="ew", padx=2, pady=5)
-
-        export_button = ttk.Button(
-            self.ergebnisse_frame, text="Exportieren", command=self.export_results
-        )
-        export_button.grid(row=1, column=2, sticky="ew", padx=2, pady=5)
-
-    # ==================== Funktionen für Links ====================
-    def browse_files(self, event=None):
-        file_paths = filedialog.askopenfilenames(
-            title="Dateien auswählen", filetypes=[("Python Dateien", "*.py")]
-        )
-        if file_paths:
-            for path in file_paths:
-                if path not in self.selected_files:
-                    self.selected_files.append(path)
-                    self.files_listbox.insert(tk.END, path)
-
-    def move_script(self, direction):
-        scripts = [s for s in self.pipeline_scripts if s["enabled"].get()]
-        if not scripts:
-            return
-        selected_script = "Name Checker"
-        selected_index = next(
-            (i for i, s in enumerate(self.pipeline_scripts) if s["name"] == selected_script),
-            None,
-        )
-        if selected_index is None:
-            return
-        new_index = selected_index + direction
-        if 0 <= new_index < len(self.pipeline_scripts):
-            self.pipeline_scripts[selected_index], self.pipeline_scripts[new_index] = (
-                self.pipeline_scripts[new_index],
-                self.pipeline_scripts[selected_index],
-            )
-            for widget in self.pipeline_frame.winfo_children():
-                widget.destroy()
-            row_idx = 0
-            for script in self.pipeline_scripts:
-                cb = ttk.Checkbutton(
-                    self.pipeline_frame, text=script["name"], variable=script["enabled"]
-                )
-                cb.grid(row=row_idx, column=0, sticky="w")
-                row_idx += 1
-            reorder_frame = ttk.Frame(self.pipeline_frame)
-            reorder_frame.grid(row=row_idx, column=0, sticky="ew", pady=5)
-            move_up_button = ttk.Button(
-                reorder_frame,
-                text="🡅 Nach oben",
-                command=lambda: self.move_script(-1),
-            )
-            move_up_button.pack(side="left", expand=True, fill="x", padx=2)
-
-            move_down_button = ttk.Button(
-                reorder_frame,
-                text="🡇 Nach unten",
-                command=lambda: self.move_script(1),
-            )
-            move_down_button.pack(side="left", expand=True, fill="x", padx=2)
-
-    # ==================== Analyse-Funktionen ====================
-    def start_analysis(self):
-        if self.is_running:
-            messagebox.showwarning("Warnung", "Eine Analyse läuft bereits.")
-            return
-        if not self.selected_files:
-            messagebox.showwarning("Warnung", "Bitte wählen Sie mindestens eine Datei aus.")
-            return
-        self.is_running = True
-        self.progress_var.set(0)
-        self.progress_percent.config(text="0%")
-        self.log_text.config(state="normal")
-        self.log_text.delete(1.0, tk.END)
-        self.log_text.config(state="disabled")
-        self.results_tree.delete(*self.results_tree.get_children())
-        self.results = []
-        self.current_step = 0
-
-        # Starte die Analyse in einem separaten Thread
-        threading.Thread(target=self.run_analysis, daemon=True).start()
-
-    def run_analysis(self):
-        total_steps = len(self.selected_files) * 3
-        current_step = 0
-
-        for file_path in self.selected_files:
-            checker = NameChecker(file_path)
-            checker.generate_report()
-            checker.save_report("name_checker_report.md")
-
-            self.results.append(
-                {
-                    "Script": "Name Checker",
-                    "Ergebnis": "Report generiert: name_checker_report.md",
-                    "Status": "✅ OK",
-                }
-            )
-            self.update_results_tree(
-                "Name Checker", "Report generiert: name_checker_report.md", "✅ OK"
-            )
-
-            current_step += 3
-            progress = (current_step / total_steps) * 100
-            self.update_progress("Fortschritt", progress, "Analyse fortschreitet...")
-
-        self.is_running = False
-        self.update_progress_final()
-
-    def update_progress(self, phase: str, progress: float, message: str):
-        self.log_message(f"[{phase}] {message}")
-        self.progress_var.set(progress)
-        self.progress_percent.config(text=f"{int(progress)}%")
-
-    def update_progress_final(self):
-        self.progress_var.set(100)
-        self.progress_percent.config(text="100%")
-        self.log_message("✅ Alle Analysen abgeschlossen.")
-
-    def log_message(self, message: str):
-        self.log_text.config(state="normal")
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.config(state="disabled")
-        self.log_text.see(tk.END)
-
-    def update_results_tree(self, script: str, result: str, status: str):
-        self.results_tree.insert("", tk.END, values=(script, result, status))
-
-    # ==================== Funktionen für Ergebnisse ====================
-    def show_details(self):
-        selected_item = self.results_tree.selection()
-        if not selected_item:
-            messagebox.showinfo("Info", "Bitte wählen Sie ein Ergebnis aus.")
-            return
-        item = self.results_tree.item(selected_item)
-        script, result, status = item["values"]
-        if script == "Name Checker":
-            report_path = result.split(": ")[1]
-            try:
-                with open(report_path, "r", encoding="utf-8") as f:
-                    report_content = f.read()
-                detail_window = tk.Toplevel(self)
-                detail_window.title(f"Details zu {script}")
-                detail_window.geometry("800x600")
-                detail_window.resizable(False, False)
-
-                detail_label = ttk.Label(
-                    detail_window, text=f"Details zu {script}", font=("Helvetica", 12, "bold")
-                )
-                detail_label.pack(anchor="w", pady=10, padx=10)
-
-                detail_text = ScrolledText(detail_window, state="normal")
-                detail_text.pack(fill="both", expand=True, padx=10, pady=5)
-                detail_text.insert(tk.END, report_content)
-                detail_text.config(state="disabled")
-            except FileNotFoundError:
-                messagebox.showerror("Fehler", f"Report-Datei nicht gefunden: {report_path}")
-        else:
-            detail_window = tk.Toplevel(self)
-            detail_window.title(f"Details zu {script}")
-            detail_window.geometry("400x300")
-            detail_window.resizable(False, False)
-
-            detail_label = ttk.Label(
-                detail_window, text=f"Details zu {script}", font=("Helvetica", 12, "bold")
-            )
-            detail_label.pack(anchor="w", pady=10, padx=10)
-
-            detail_text = ScrolledText(detail_window, state="normal")
-            detail_text.pack(fill="both", expand=True, padx=10, pady=5)
-            detail_text.insert(
-                tk.END,
-                f"Ergebnis: {result}\nStatus: {status}\n\nWeitere Details können hier angezeigt werden.",
-            )
-            detail_text.config(state="disabled")
-
-    def compare_results(self):
-        messagebox.showinfo("Info", "Vergleichsansicht ist noch nicht implementiert.")
-
-    def export_results(self):
-        if not self.results:
-            messagebox.showinfo("Info", "Keine Ergebnisse zum Exportieren.")
-            return
-        export_window = tk.Toplevel(self)
-        export_window.title("Exportieren")
-        export_window.geometry("300x200")
-        export_window.resizable(False, False)
-
-        export_label = ttk.Label(
-            export_window, text="Wählen Sie ein Exportformat:", font=("Helvetica", 12, "bold")
-        )
-        export_label.pack(pady=10)
-
-        json_button = ttk.Button(
-            export_window,
-            text="Als JSON exportieren",
-            command=lambda: self.export_as("json"),
-        )
-        json_button.pack(fill="x", padx=20, pady=5)
-
-        csv_button = ttk.Button(
-            export_window,
-            text="Als CSV exportieren",
-            command=lambda: self.export_as("csv"),
-        )
-        csv_button.pack(fill="x", padx=20, pady=5)
-
-        md_button = ttk.Button(
-            export_window,
-            text="Als Markdown exportieren",
-            command=lambda: self.export_as("md"),
-        )
-        md_button.pack(fill="x", padx=20, pady=5)
-
-    def export_as(self, format):
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=f".{format}",
-            filetypes=[(f"{format.upper()} Dateien", f"*.{format}")],
-        )
-        if not file_path:
-            return
+    def run(self):
         try:
-            if format == "json":
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump(self.results, f, ensure_ascii=False, indent=4)
-            elif format == "csv":
-                import csv
-
-                with open(file_path, "w", newline="", encoding="utf-8") as f:
-                    writer = csv.DictWriter(
-                        f, fieldnames=["Script", "Ergebnis", "Status"]
-                    )
-                    writer.writeheader()
-                    writer.writerows(self.results)
-            elif format == "md":
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write("| Skript | Ergebnis | Status |\n")
-                    f.write("|---|---|---|\n")
-                    for res in self.results:
-                        f.write(
-                            f"| {res['Script']} | {res['Ergebnis']} | {res['Status']} |\n"
-                        )
-            messagebox.showinfo(
-                "Erfolg", f"Ergebnisse erfolgreich als {format.upper()} exportiert."
-            )
+            self.status = "Running..."
+            if self.function:
+                self.function(*self.args, **self.kwargs)
+            self.status = "✅ OK"
         except Exception as e:
-            messagebox.showerror(
-                "Fehler", f"Beim Exportieren ist ein Fehler aufgetreten:\n{e}"
+            self.status = f"🔴 Failed: {e}"
+
+class AnalysisPipeline:
+    def __init__(self, treeview):
+        self.steps = []
+        self.current_step = 0
+        self.treeview = treeview
+
+    def add_step(self, name, function, *args, **kwargs):
+        step = AnalysisPipelineStep(name, function, *args, **kwargs)
+        self.steps.append(step)
+        self.display_status()
+
+    def display_status(self):
+        for item in self.treeview.get_children():
+            self.treeview.delete(item)
+
+        for idx, step in enumerate(self.steps, start=1):
+            self.treeview.insert(
+                "",
+                "end",
+                iid=str(idx),
+                values=(step.status, step.name, self._display_args(step), "N/A")
             )
 
+    def run_next_step(self):
+        if self.current_step < len(self.steps):
+            step = self.steps[self.current_step]
+            step.run()
+            self.display_status()
+            self.current_step += 1
+        else:
+            messagebox.showinfo("Info", "Alle Analyseschritte sind abgeschlossen.")
+
+    def reset(self):
+        self.steps.clear()
+        self.current_step = 0
+        self.display_status()
+
+    def _display_args(self, step):
+        """Zeigt maximal die letzten Segmente des Dateipfades an."""
+        if step.args:
+            path = step.args[0]
+            parts = path.split(os.sep)
+            if len(parts) > 4:
+                return os.path.join(*parts[-4:])
+            return path
+        return "N/A"
+
+# Beispiel-Funktionen für die Actions
+def run_script1(file_path):
+    print(f"[Pipeline] Skript 1 läuft auf: {file_path}")
+
+def run_script2(file_path):
+    print(f"[Pipeline] Skript 2 läuft auf: {file_path}")
+
+def run_name_checker(file_path):
+    print(f"[Pipeline] NameChecker läuft auf: {file_path}")
+    checker = NameChecker(file_path)
+    checker.generate_report()
+    checker.save_report("name_checker_report.md")
+
+def run_script4(file_path):
+    print(f"[Pipeline] Skript 4 läuft auf: {file_path}")
+
+analysis_actions = {
+    "Skript 1": run_script1,
+    "Skript 2": run_script2,
+    "Name Checker": run_name_checker,
+    "Skript 4": run_script4
+}
+
+# ----------------------------------------
+#   GUI analog zu gui_transform.py
+# ----------------------------------------
+back_history = []
+forward_history = []
+current_directory = os.getcwd()
+selected_file = None
+
+def list_directory_contents(directory):
+    contents = []
+    for item in os.listdir(directory):
+        full_path = os.path.join(directory, item)
+        if os.path.isdir(full_path):
+            contents.append(f"{item}/")
+        elif item.endswith(".py"):
+            contents.append(item)
+    return contents
+
+def update_directory_list(directory, dir_listbox, dir_label, pipeline, add_to_history=True):
+    global current_directory, back_history, forward_history
+
+    if add_to_history:
+        back_history.append(current_directory)
+
+    if add_to_history and current_directory != directory:
+        forward_history.clear()
+
+    current_directory = directory
+    dir_listbox.delete(0, END)
+    contents = list_directory_contents(directory)
+    for item in contents:
+        dir_listbox.insert(END, item)
+    dir_label.config(text=f"Aktuelles Verzeichnis: {directory}")
+    pipeline.reset()
+
+def navigate_up(dir_listbox, dir_label, pipeline):
+    global current_directory
+    parent_directory = os.path.dirname(current_directory)
+    if parent_directory != current_directory:
+        update_directory_list(parent_directory, dir_listbox, dir_label, pipeline)
+    else:
+        messagebox.showinfo("Info", "Sie befinden sich bereits im Wurzelverzeichnis.")
+
+def navigate_back(dir_listbox, dir_label, pipeline):
+    global back_history, current_directory, forward_history
+    if back_history:
+        forward_history.append(current_directory)
+        previous_directory = back_history.pop()
+        update_directory_list(previous_directory, dir_listbox, dir_label, pipeline, add_to_history=False)
+    else:
+        messagebox.showinfo("Info", "Keine vorherigen Verzeichnisse in der Historie.")
+
+def navigate_forward(dir_listbox, dir_label, pipeline):
+    global forward_history, current_directory, back_history
+    if forward_history:
+        back_history.append(current_directory)
+        next_directory = forward_history.pop()
+        update_directory_list(next_directory, dir_listbox, dir_label, pipeline, add_to_history=False)
+    else:
+        messagebox.showinfo("Info", "Keine weiteren Verzeichnisse in der Historie.")
+
+def remove_pipeline_step(event, pipeline_tree, pipeline):
+    if selected_item := pipeline_tree.selection():
+        try:
+            step_index = int(selected_item[0]) - 1
+            if 0 <= step_index < len(pipeline.steps):
+                del pipeline.steps[step_index]
+                pipeline.display_status()
+        except ValueError:
+            messagebox.showerror("Fehler", "Ungültige Schritt-ID.")
+
+def show_pipeline_menu(event, pipeline_tree, pipeline_menu):
+    if selected_item := pipeline_tree.identify_row(event.y):
+        pipeline_tree.selection_set(selected_item)
+        pipeline_menu.post(event.x_root, event.y_root)
+
+def build_analyze_gui():
+    root = tk.Tk()
+    root.title("Analyse- und Empfehlungssystem")
+    root.geometry("825x800")
+    root.resizable(False, False)
+
+    style = ttk.Style(root)
+    available_themes = style.theme_names()
+    if "vista" in available_themes:
+        style.theme_use("vista")
+    else:
+        style.theme_use("default")
+
+    main_frame = ttk.Frame(root)
+    main_frame.grid(row=0, column=0, sticky="nsew")
+    root.columnconfigure(0, weight=1)
+    root.rowconfigure(0, weight=1)
+    main_frame.columnconfigure(0, weight=1)
+    main_frame.rowconfigure(2, weight=1)
+
+    # Label für das aktuelle Verzeichnis
+    dir_label = ttk.Label(
+        main_frame,
+        text=f"Aktuelles Verzeichnis: {current_directory}",
+        anchor="w",
+        font=("Helvetica", 12, "bold"),
+    )
+    dir_label.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
+
+    # Frame für die Dateiliste
+    frame = ttk.Frame(main_frame)
+    frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
+    frame.columnconfigure(0, weight=1)
+    frame.rowconfigure(0, weight=1)
+
+    scrollbar = ttk.Scrollbar(frame, orient="vertical")
+    scrollbar.grid(row=0, column=1, sticky="ns")
+
+    dir_listbox = tk.Listbox(frame, yscrollcommand=scrollbar.set, font=("Courier", 10))
+    dir_listbox.grid(row=0, column=0, sticky="nsew")
+    scrollbar.config(command=dir_listbox.yview)
+
+    # Navigations-Frame
+    nav_frame = ttk.Frame(main_frame)
+    nav_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(5, 5))
+
+    # Aktionen-Frame
+    actions_frame = ttk.LabelFrame(
+        main_frame, text="Skripte auswählen", padding=(10, 10)
+    )
+    actions_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
+    actions_frame.columnconfigure(0, weight=1)
+
+    # Checkbuttons für die Analyse
+    action_vars = {}
+    for action_name in analysis_actions.keys():
+        var = tk.BooleanVar()
+        cb = ttk.Checkbutton(actions_frame, text=action_name, variable=var)
+        cb.pack(side="left", padx=5, pady=5)
+        action_vars[action_name] = var
+
+    # Pipeline-Frame
+    pipeline_frame = ttk.LabelFrame(
+        main_frame, text="Pipeline Schritte", padding=(10, 10)
+    )
+    pipeline_frame.grid(row=4, column=0, sticky="ew", padx=10, pady=5)
+    pipeline_frame.columnconfigure(0, weight=1)
+
+    pipeline_tree = ttk.Treeview(
+        pipeline_frame,
+        columns=("Status", "Name", "Datei", "Duration"),
+        show="headings",
+        selectmode="browse",
+    )
+    pipeline_tree.heading("Status", text="Status")
+    pipeline_tree.heading("Name", text="Aktion")
+    pipeline_tree.heading("Datei", text="Datei")
+    pipeline_tree.heading("Duration", text="Duration")
+    pipeline_tree.column("Status", width=100, anchor="center")
+    pipeline_tree.column("Name", width=200, anchor="w")
+    pipeline_tree.column("Datei", width=350, anchor="w")
+    pipeline_tree.column("Duration", width=80, anchor="center")
+    pipeline_tree.pack(fill="both", expand=True)
+
+    pipeline_scrollbar = ttk.Scrollbar(
+        pipeline_frame, orient="vertical", command=pipeline_tree.yview
+    )
+    pipeline_tree.configure(yscrollcommand=pipeline_scrollbar.set)
+    pipeline_scrollbar.pack(side="right", fill="y")
+
+    pipeline_menu = tk.Menu(root, tearoff=0)
+    pipeline = AnalysisPipeline(pipeline_tree)
+    pipeline_menu.add_command(
+        label="Schritt entfernen",
+        command=lambda: remove_pipeline_step(None, pipeline_tree, pipeline),
+    )
+
+    def show_pipeline_menu_handler(event):
+        show_pipeline_menu(event, pipeline_tree, pipeline_menu)
+
+    pipeline_tree.bind("<Button-3>", show_pipeline_menu_handler)
+
+    # Handler für Doppelklick auf Eintrag in der Dateiliste
+    def on_item_double_click(event):
+        selection = dir_listbox.curselection()
+        if not selection:
+            return
+        selected_item = dir_listbox.get(selection)
+        selected_path = os.path.join(current_directory, selected_item)
+
+        if os.path.isdir(selected_path.rstrip("/")):
+            update_directory_list(selected_path.rstrip("/"), dir_listbox, dir_label, pipeline)
+        elif selected_item.endswith(".py"):
+            global selected_file
+            selected_file = selected_path
+            confirm_actions()
+
+    # Fügt die ausgewählten Skripte der Pipeline hinzu
+    def confirm_actions():
+        chosen_scripts = [name for name, var in action_vars.items() if var.get()]
+        if not chosen_scripts:
+            messagebox.showwarning("Warnung", "Bitte wählen Sie mindestens ein Skript aus.")
+            return
+
+        if not selected_file:
+            messagebox.showwarning("Warnung", "Bitte wählen Sie eine .py Datei aus.")
+            return
+
+        for script_name in chosen_scripts:
+            func = analysis_actions.get(script_name)
+            pipeline.add_step(script_name, func, selected_file)
+
+    dir_listbox.bind("<Double-Button-1>", on_item_double_click)
+
+    # Navigations-Buttons
+    def navigate_up_button():
+        navigate_up(dir_listbox, dir_label, pipeline)
+
+    def navigate_back_button():
+        navigate_back(dir_listbox, dir_label, pipeline)
+
+    def navigate_forward_button():
+        navigate_forward(dir_listbox, dir_label, pipeline)
+
+    navigate_up_btn = ttk.Button(
+        nav_frame, text="⬆️ Nach oben navigieren", command=navigate_up_button
+    )
+    navigate_up_btn.pack(side="left")
+
+    navigate_back_btn = ttk.Button(
+        nav_frame, text="🔙 Zurück", command=navigate_back_button
+    )
+    navigate_back_btn.pack(side="left", padx=(10, 0))
+
+    navigate_forward_btn = ttk.Button(
+        nav_frame, text="🔜 Vorwärts", command=navigate_forward_button
+    )
+    navigate_forward_btn.pack(side="left", padx=(5, 0))
+
+    # Maus-Events zum Blättern
+    def on_mouse_button(event):
+        if event.num == 4:  # "Back"
+            navigate_back(dir_listbox, dir_label, pipeline)
+        elif event.num == 5:  # "Forward"
+            navigate_forward(dir_listbox, dir_label, pipeline)
+
+    root.bind_all("<Button-4>", on_mouse_button)
+    root.bind_all("<Button-5>", on_mouse_button)
+
+    # Button zum Ausführen des nächsten Pipelineschritts
+    def run_next_step_button():
+        pipeline.run_next_step()
+
+    start_button = ttk.Button(main_frame, text="Weiter", command=run_next_step_button)
+    start_button.grid(row=5, column=0, sticky="e", padx=10, pady=10)
+
+    # Initiales Laden des aktuellen Verzeichnisses
+    update_directory_list(current_directory, dir_listbox, dir_label, pipeline)
+
+    return root
+
+# Starte die GUI
 if __name__ == "__main__":
-    app = AnalysisApp()
+    app = build_analyze_gui()
     app.mainloop()

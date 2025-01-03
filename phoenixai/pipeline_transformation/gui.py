@@ -2,9 +2,8 @@ import os
 import tkinter as tk
 from tkinter import END, ttk
 from tkinter.messagebox import showerror, showinfo
-from refactor import extract_functions
-
-from pipeline import Pipeline, action_functions
+from phoenixai.pipeline_transformation.refactor import extract_functions
+from phoenixai.pipeline_transformation.pipeline_transform_impl import Pipeline, action_functions
 
 back_history = []
 forward_history = []
@@ -292,7 +291,7 @@ def build_gui():
                 "end_line": func["end_line"],
             }
 
-        # In gui.py, in der Funktion confirm_refactor_selection():
+        # In gui_analysis.py, in der Funktion confirm_refactor_selection():
         def confirm_refactor_selection():
             selected_functions = [
                 name for name, info in var_dict.items() if info["variable"].get()

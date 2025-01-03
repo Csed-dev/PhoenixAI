@@ -1,8 +1,7 @@
 import ast
-import os
 import astor
 
-from base_prompt_handling import trim_code, read_file, save_code_to_file, call_llm
+from phoenixai.utils.base_prompt_handling import trim_code, read_file, save_code_to_file, call_llm
 
 
 def generate_type_annotation_prompt(code_snippet):

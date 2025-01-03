@@ -4,8 +4,8 @@ import ast
 
 import astor
 
-from base_prompt_handling import (call_llm, read_file,
-                                  save_code_to_file, trim_code)
+from phoenixai.utils.base_prompt_handling import (call_llm, read_file,
+                                                  save_code_to_file, trim_code)
 
 
 def _generate_docstring_prompt(code_snippet):
