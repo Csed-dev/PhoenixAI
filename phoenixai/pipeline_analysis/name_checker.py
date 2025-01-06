@@ -6,7 +6,7 @@ from typing import List, Optional, Dict
 import typing_extensions
 import google.generativeai as genai
 
-from base_prompt_handling_copy import (
+from phoenixai.utils.base_prompt_handling import (
     read_file,
     load_llm_model,
 )
