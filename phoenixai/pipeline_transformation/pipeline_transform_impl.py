@@ -51,7 +51,7 @@ def run_custom_prompt(file_path):
     print(f"[Transform] Custom Prompt für {file_path}")
 
 # Dictionary aller Transform-Aktionen
-action_functions = {
+transform_actions = {
     "Refactor": run_refactor,
     "Add/Improve Docstrings": run_add_docstrings,
     "Type Annotation Updater": run_type_annotation_updater,

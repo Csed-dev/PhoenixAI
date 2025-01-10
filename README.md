@@ -15,7 +15,7 @@ Before running this project, ensure you have the following:
 
 1. **Python 3.12+** installed on your system.
 2. A Google Cloud Project set up with **access to Google APIs** (explained below).
-3. ...
+3. repos.json erstellen, unter /utils
 4
 
 ## Setup
