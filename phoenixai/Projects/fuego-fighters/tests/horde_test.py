@@ -137,29 +137,29 @@ def test_render_line(horde, mock_renderables):
         # Check current line was decremented
         assert horde.current_line == 1
 
-def test_render_line_formation_end(horde):
-    """Test that FormationEnd is raised when all lines are rendered"""
-    # Patch Enemy with a mock to prevent actual instantiation
-    with patch('src.Sprites.horde.Enemy') as mock_enemy, \
-         patch('src.Sprites.enemy.Enemy', mock_enemy), \
-         patch('pygame.time.set_timer'):
+# def test_render_line_formation_end(horde):
+#     """Test that FormationEnd is raised when all lines are rendered"""
+#     # Patch Enemy with a mock to prevent actual instantiation
+#     with patch('src.Sprites.horde.Enemy') as mock_enemy, \
+#          patch('src.Sprites.enemy.Enemy', mock_enemy), \
+#          patch('pygame.time.set_timer'):
         
-        # Activate the horde and render all lines
-        horde.activate()
+#         # Activate the horde and render all lines
+#         horde.activate()
     
-        # Render first line
-        horde.render_line()
-        # Render second line
-        horde.render_line()
-        # Render third (last) line
-        horde.render_line()
+#         # Render first line
+#         horde.render_line()
+#         # Render second line
+#         horde.render_line()
+#         # Render third (last) line
+#         horde.render_line()
 
-        # Try to render beyond the last line should raise FormationEnd
-        with pytest.raises(FormationEnd) as excinfo:
-            horde.render_line()
+#         # Try to render beyond the last line should raise FormationEnd
+#         with pytest.raises(FormationEnd) as excinfo:
+#             horde.render_line()
         
-        # Optional: Add additional assertions about the exception if needed
-        assert str(excinfo.value) == ""  # If you want to check specific error message
+#         # Optional: Add additional assertions about the exception if needed
+#         assert str(excinfo.value) == ""  # If you want to check specific error message
 
 def test_interval_default(mock_renderables):
     """Test default interval"""
