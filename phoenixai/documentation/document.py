@@ -1,6 +1,6 @@
 """
 This module generates the documentation for the transformed code.
-It also explains the transformation of the transformed code based on
+It also explains the pipeline_transformation of the transformed code based on
 the analysis of the legacy code.
 """
 

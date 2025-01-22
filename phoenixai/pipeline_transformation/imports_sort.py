@@ -4,8 +4,8 @@ import ast
 
 import astor
 
-from base_prompt_handling import (read_file, run_black_and_isort,
-                                  save_code_to_file)
+from phoenixai.utils.base_prompt_handling import (read_file, run_black_and_isort,
+                                                  save_code_to_file)
 
 
 def collect_imports_and_format(file_path):

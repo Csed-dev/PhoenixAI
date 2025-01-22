@@ -147,24 +147,20 @@ def trim_code(improved_code):
 
 
 def save_code_to_file(file_path, improved_code, iteration=None):
-    """Saves the improved code to a file.
+    """Saves the improved code to the same file, ignoring the iteration parameter.
 
     Args:
-        file_path (str): The path to the original file.
+        file_path (str): The path to the file.
         improved_code (str): The improved code to be saved.
-        iteration (int, optional): The iteration number. If provided, a new file is created.
+        iteration (int, optional): The iteration number (ignored).
 
     Returns:
         str: The path to the saved file."""
-    if iteration is not None:
-        base_name, ext = os.path.splitext(file_path)
-        new_file_path = f"{base_name}_improved_{iteration}{ext}"
-    else:
-        new_file_path = file_path
-    with open(new_file_path, "w", encoding="utf-8") as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(improved_code)
-    print(f"[Save] Code gespeichert unter: {new_file_path}")
-    return new_file_path
+    print(f"[Save] Code gespeichert unter: {file_path}")
+    return file_path
+
 
 
 def format_file_with_black(file_path):

@@ -1,7 +1,7 @@
 """Module for running iterative pylint workflow."""
 
 import os
-from pylint_workflow import iterative_process_with_pylint
+from phoenixai.pipeline_transformation.pylint_workflow import iterative_process_with_pylint
 
 
 def main():
