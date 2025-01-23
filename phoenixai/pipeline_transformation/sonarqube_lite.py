@@ -1,4 +1,5 @@
 import logging
+from os.path import split
 
 from pathlib import Path
 import sys
@@ -84,6 +85,7 @@ def process_group_with_llm(prompt, code_file_paths, iteration=1):
     improved_files = []
 
     for idx, code_file_path in enumerate(code_file_paths, start=1):
+        code_file_path = "/Users/jozef/PycharmProjects/PhoenixAI/phoenixai/Projects/fuego-fighters/" + code_file_path.split(":")[1]
         improved_file = save_code_to_file(
             code_file_path, improved_code, iteration=iteration + idx
         )
