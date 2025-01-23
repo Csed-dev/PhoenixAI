@@ -18,8 +18,10 @@ def run_script4(file_path):
     print(f"[Analysis] Skript 4 auf: {file_path}")
 
 analysis_actions = {
-    "Skript 1": run_script1,
-    "Skript 2": run_script2,
     "Name Checker": run_name_checker,
-    "Skript 4": run_script4,
+    "SonarQube": run_script1,
+    "Performance": run_script2,
+    "Architecture": run_script4,
+    "Security": run_script4,
 }
+
