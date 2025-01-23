@@ -197,7 +197,7 @@ class AnalyseGUI(tb.Window):
         )
         self.pipeline_tree.bind("<Button-3>", self.show_pipeline_menu_handler)
 
-        run_btn = tb.Button(self.left_frame, text="Weiteren Schritt ausführen", command=self.run_next_step_button, bootstyle="success")
+        run_btn = tb.Button(self.right_frame, text="Weiteren Schritt ausführen", command=self.run_next_step_button, bootstyle="success")
         run_btn.pack(pady=10, anchor="e", padx=10)
 
     # ===================== Aufbau rechter Bereich =====================
