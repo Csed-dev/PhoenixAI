@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="phoenix" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="phoenix" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.12 (PhoenixAI)" project-jdk-type="Python SDK" />
 </project>
