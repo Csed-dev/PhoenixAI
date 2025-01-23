@@ -1,8 +1,36 @@
 import ast
-import re
 
 import astor
-from base_prompt_handling import save_code_to_file, trim_code,parse_ast, call_llm, read_file
+from phoenixai.utils.base_prompt_handling import save_code_to_file, trim_code,parse_ast, call_llm, read_file
+
+def extract_functions(file_path):
+    """
+    Extrahiert alle Funktionen aus einer Python-Datei.
+
+    Parameters:
+    - file_path (str): Der Pfad zur Python-Datei.
+
+    Returns:
+    - list of dict: Eine Liste von Dictionaries mit 'name', 'start_line' und 'end_line' für jede Funktion.
+    """
+    with open(file_path, "r", encoding="utf-8") as f:
+        code = f.read()
+
+    parsed_ast = ast.parse(code)
+    functions = []
+
+    for node in parsed_ast.body:
+        if isinstance(node, ast.FunctionDef):
+            start_line = node.lineno
+            end_line = (
+                node.body[-1].end_lineno
+                if hasattr(node.body[-1], "end_lineno")
+                else node.lineno
+            )
+            functions.append(
+                {"name": node.name, "start_line": start_line, "end_line": end_line}
+            )
+    return functions
 
 
 def extract_function_by_line(file_path, line_number):
@@ -147,15 +175,12 @@ def process_refactoring(file_path, line_numbers):
         sorted_line_numbers = sorted(line_numbers, reverse=True)
 
         for line_number in sorted_line_numbers:
-            print(f"[Refactor] Bearbeite Funktion in Zeile: {line_number}")
             # Extrahiere die Funktion und ihre Position
             function_code, start_line, end_line = extract_function_by_line(file_path, line_number)
-            print(f"[Refactor] Funktion extrahiert: {function_code}")
 
             # Generiere den Prompt und erhalte den refaktorierten Code
             prompt = generate_refactoring_prompt([function_code])
             refactored_code = call_llm(prompt)
-            print(f"[Refactor] LLM Antwort erhalten:\n{refactored_code}")
 
             # Trim LLM-Antwort und validiere
             trimmed_refactored_code = trim_code(refactored_code)
@@ -166,12 +191,10 @@ def process_refactoring(file_path, line_numbers):
 
             # Aktualisiere die Zeilen dynamisch
             lines = replace_function_in_code(lines, start_line, end_line, trimmed_refactored_code)
-            print(f"[Refactor] Funktion aktualisiert in Zeilen {start_line}-{end_line}")
 
         # Speichere den Code nach der Refaktorisierung
         updated_code = "\n".join(lines)
         save_code_to_file(file_path, updated_code)
-        print(f"[Refactor] Refaktorisierung abgeschlossen und gespeichert: {file_path}")
 
     except ValueError as e:
         print(f"[Refactor] Fehler beim Verarbeiten der Datei: {e}")

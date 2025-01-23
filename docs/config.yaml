@@ -10,6 +10,6 @@ paths:
   modules:
     repo_management: "./phoenixai/repo_management/manage_legacy_repo.py"
     analysis: "./phoenixai/analysis/analyze.py"
-    transformation: "./phoenixai/transformation/transform.py"
+    transformation: "./phoenixai/pipeline_transformation/transform.py"
     cicd: "./phoenixai/cicd/cicd.py"
     documentation: "./phoenixai/documentation/document.py"

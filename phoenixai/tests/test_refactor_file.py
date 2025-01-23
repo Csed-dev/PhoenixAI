@@ -3,7 +3,10 @@ import json
 import os
 import random
 
-def manage_userData(file_path, user_data):
+"""Module for managing and processing data."""
+
+
+def manage_user_data(file_path, user_data):
     """Manages user data."""
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
@@ -16,6 +19,7 @@ def manage_userData(file_path, user_data):
         json.dump(data, f, indent=4)
     print(f"Total users: {len(data)}")
 
+
 def process_orders(orders):
     """Processes a list of orders."""
     if not orders:
@@ -27,6 +31,7 @@ def process_orders(orders):
     print(f"Total Revenue: ${total_revenue}")
     print(f"Most Expensive Order: {most_expensive}")
     print(f"Orders Exceeding $100: {len(high_value_orders)}")
+
 
 def generate_random_data(file_path):
     """Generates random data for testing."""
@@ -42,6 +47,7 @@ def generate_random_data(file_path):
     with open("operation_log.txt", "a", encoding="utf-8") as log:
         log.write(f"[{datetime.datetime.now()}] Generated data in {file_path}\n")
 
+
 def analyze_weather_data(data):
     """Analyzes weather data."""
     if not data:
@@ -54,8 +60,9 @@ def analyze_weather_data(data):
     print(f"Hottest Day: {hottest_day}")
     print(f"Days with Rain: {rainy_days}")
 
+
 if __name__ == "__main__":
-    manage_userData("users.json", {"name": "Alice", "age": 25})
+    manage_user_data("users.json", {"name": "Alice", "age": 25})
     process_orders(
         [
             {"id": 1, "amount": 150.5},

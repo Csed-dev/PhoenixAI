@@ -1,27 +1,8 @@
 import ast
-import os
 import astor
-import google.generativeai as genai
-from dotenv import load_dotenv
 
-from base_prompt_handling import trim_code
+from phoenixai.utils.base_prompt_handling import trim_code, read_file, save_code_to_file, call_llm
 
-# LLM-Konfiguration
-load_dotenv()
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-if not gemini_api_key:
-    raise ValueError("GEMINI_API_KEY nicht gesetzt. Bitte setzen Sie die Umgebungsvariable.")
-
-genai.configure(api_key=gemini_api_key)
-model = genai.GenerativeModel("gemini-1.5-flash")
-
-def extract_code_for_llm(file_path):
-    """Liest den Python-Code aus einer Datei."""
-    if not os.path.isfile(file_path):
-        raise FileNotFoundError(f"Die Datei {file_path} existiert nicht.")
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        return f.read()
 
 def generate_type_annotation_prompt(code_snippet):
     """
@@ -52,20 +33,6 @@ Your task is to generate and insert **type annotations** for all classes, method
 2. Keep existing type annotations unchanged unless they are incorrect.
 3. Ensure that the updated code adheres to PEP 484 (Type Hints) guidelines.
 """
-
-def call_llm_for_annotations(prompt):
-    """Ruft das LLM auf, um Typannotationen zu generieren."""
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(temperature=0.7),
-        )
-        if response and response.candidates:
-            return response.candidates[0].content.parts[0].text
-        else:
-            raise ValueError("Keine Antwort vom LLM erhalten.")
-    except Exception as e:
-        raise RuntimeError(f"Fehler beim LLM-Aufruf: {e}") from e
 
 def insert_type_annotations(original_code, llm_response):
     """
@@ -98,18 +65,12 @@ def insert_type_annotations(original_code, llm_response):
     except Exception as e:
         raise RuntimeError(f"Fehler beim Einfügen der Typannotationen: {e}") from e
 
-def save_code_with_annotations(file_path, updated_code):
-    """Speichert den Code mit den neuen Typannotationen."""
-    output_file = file_path.replace(".py", "_typed.py")
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(updated_code)
-    print(f"Der aktualisierte Code wurde gespeichert: {output_file}")
 
 def annotation_process_file(file_path):
     """Kompletter Prozess zur Generierung und Einfügung von Typannotationen."""
-    original_code = extract_code_for_llm(file_path)
+    original_code = read_file(file_path)
     prompt = generate_type_annotation_prompt(original_code)
-    llm_response = call_llm_for_annotations(prompt)
+    llm_response = call_llm(prompt)
     trimmed_llm_code = trim_code(llm_response)
     updated_code = insert_type_annotations(original_code, trimmed_llm_code)
-    save_code_with_annotations(file_path, updated_code)
+    save_code_to_file(file_path, updated_code)
