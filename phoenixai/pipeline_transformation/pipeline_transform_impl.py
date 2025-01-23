@@ -60,5 +60,4 @@ transform_actions = {
     "Black": run_black,
     "Pylint": run_pylint,
     "Sourcery": run_sourcery,
-    "Custom Prompt": run_custom_prompt
 }
