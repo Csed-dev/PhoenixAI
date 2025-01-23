@@ -1,10 +1,15 @@
 import logging
 
+from pathlib import Path
+import sys
+path_root = Path(__file__).parents[2]
+sys.path.append(str(path_root))
+print(sys.path)
+
 from phoenixai.analysis.analyze import sonarqube_analysis
 
 from phoenixai.utils.base_prompt_handling import (call_llm, generate_initial_prompt,
                                                   save_code_to_file, trim_code)
-
 
 def analyze_sonar_issues():
     """
@@ -51,7 +56,7 @@ def generate_group_prompt(issues_group):
     """
     logging.info(f"Erstelle Prompt für eine Gruppe mit {len(issues_group)} Issues.")
     prompt_parts = []
-    for issue_key, issue in issues_group.items():
+    for issue in issues_group['issues']:
         prompt_parts.append(
             f"- {issue['message']} (SonarQube-Rule: {issue['rule']}) in Datei {issue['component']}."
         )
@@ -98,7 +103,7 @@ def process_issue_groups(issue_groups):
             f"Verarbeite Gruppe {group_idx}/{len(issue_groups)} mit {len(issues_group)} Issues."
         )
         prompt = generate_group_prompt(issues_group)
-        code_file_paths = [issue["component"] for issue in issues_group.values()]
+        code_file_paths = [issue["component"] for issue in issues_group['issues']]
 
         try:
             improved_files = process_group_with_llm(
