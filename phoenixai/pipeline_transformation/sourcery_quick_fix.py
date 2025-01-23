@@ -26,6 +26,7 @@ def run_sourcery_fix(file_path: str) -> bool:
             capture_output=True,
             text=True,
             check=True,
+            encoding="utf-8",
         )
         logging.info(f"Sourcery hat '{file_path}' erfolgreich korrigiert.")
         return True
