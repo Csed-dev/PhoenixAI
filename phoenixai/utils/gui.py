@@ -19,10 +19,10 @@ class AnalyseGUI(tb.Window):
     def __init__(self):
         super().__init__(themename="flatly")  # Wählen Sie ein modernes Theme
         self.title("Analyse- und Transformations-Tool")
-        self.geometry("2000x1000")  # Angepasst für mehr Platz links
+        self.geometry("1200x1000")  # Angepasst für mehr Platz links
 
         # Minimalgröße, damit das Layout nicht völlig bricht
-        self.minsize(2100, 1500)
+        self.minsize(1200, 800)
 
         # Haupt-PanedWindow erstellen für linke und rechte Bereiche
         self.paned_window = tb.PanedWindow(self, orient=tk.HORIZONTAL, bootstyle="success")
