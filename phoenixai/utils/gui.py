@@ -182,7 +182,8 @@ class AnalyseGUI(tb.Window):
             label="Schritt entfernen",
             command=self.remove_pipeline_step
         )
-        self.pipeline_tree.bind("<Button-3>", self.show_pipeline_menu_handler)
+        self.pipeline_tree.bind("<Button-3>", self.show_pipeline_menu_handler)  # Für Windows und Linux
+        self.pipeline_tree.bind("<Control-Button-1>", self.show_pipeline_menu_handler)  # Für MacOS
 
     # ===================== Aufbau rechter Bereich =====================
     def build_right_side(self):
