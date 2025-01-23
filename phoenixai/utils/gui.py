@@ -4,6 +4,7 @@ import os
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 import ttkbootstrap as tb
+from tkinter import ttk
 
 from pipeline_common import Pipeline, PipelineStep
 
@@ -56,13 +57,6 @@ class AnalyseGUI(tb.Window):
         self.analysis_vars = {a_name: {"var": tk.BooleanVar(), "function": analysis_actions.get(a_name)} for a_name in analysis_actions.keys()}
         self.transform_vars = {t_name: {"var": tk.BooleanVar(), "function": transform_actions.get(t_name)} for t_name in transform_actions.keys()}
 
-        columns = ("Script", "Ergebnis", "Status")
-        self.results_tree = tb.Treeview(self.right_frame, columns=columns, show="headings", height=20, bootstyle="primary")
-        self.results_tree.heading("Script", text="Script")
-        self.results_tree.heading("Ergebnis", text="Ergebnis")
-        self.results_tree.heading("Status", text="Status")
-        self.results_tree.pack(fill="both", expand=True, padx=10, pady=10)
-
         # GUI-Elemente aufbauen
         self.build_left_side()
         self.build_right_side()
@@ -95,13 +89,6 @@ class AnalyseGUI(tb.Window):
         """
         Linker Bereich: Navigation, Aktionen, Pipeline-Anzeige, Repository Management
         """
-
-        # Repository Management
-        self.repo_manager = RepositoryManager(
-            parent_frame=self.left_frame,
-            set_status_callback=self.set_status,
-            populate_repos_callback=self.on_repository_change
-        )
 
         # Oberes Label: aktuelles Verzeichnis
         self.dir_label = tb.Label(
@@ -164,7 +151,7 @@ class AnalyseGUI(tb.Window):
 
         # Pipeline
         pipeline_frame = tb.LabelFrame(self.left_frame, text="Pipeline Schritte", bootstyle="info")
-        pipeline_frame.pack(fill="both", expand=False, pady=10, padx=10)
+        pipeline_frame.pack(fill="both", expand=True, pady=10, padx=10)
 
         self.pipeline_tree = tb.Treeview(
             pipeline_frame,
@@ -195,17 +182,33 @@ class AnalyseGUI(tb.Window):
             label="Schritt entfernen",
             command=self.remove_pipeline_step
         )
-        self.pipeline_tree.bind("<Button-3>", self.show_pipeline_menu_handler)
-
-        run_btn = tb.Button(self.right_frame, text="Weiteren Schritt ausführen", command=self.run_next_step_button, bootstyle="success")
-        run_btn.pack(pady=10, anchor="e", padx=10)
+        self.pipeline_tree.bind("<Button-3>", self.show_pipeline_menu_handler)  # Für Windows und Linux
 
     # ===================== Aufbau rechter Bereich =====================
     def build_right_side(self):
         """
         Rechter Bereich:
-        📊 Analyse-Ergebnisse & Empfehlungen
+        📊 Analyse-Ergebnisse & Repository Management
         """
+
+        # Repository Management oben rechts
+        self.repo_manager = RepositoryManager(
+            parent_frame=self.right_frame,
+            set_status_callback=self.set_status,
+            populate_repos_callback=self.on_repository_change
+        )
+
+        # Ergebnisse darunter
+        columns = ("Script", "Ergebnis", "Status")
+        self.results_tree = tb.Treeview(self.right_frame, columns=columns, show="headings", height=20, bootstyle="primary")
+        self.results_tree.heading("Script", text="Script")
+        self.results_tree.heading("Ergebnis", text="Ergebnis")
+        self.results_tree.heading("Status", text="Status")
+        self.results_tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        run_btn = tb.Button(self.left_frame, text="Weiteren Schritt ausführen", command=self.run_next_step_button, bootstyle="success")
+        run_btn.pack(pady=10, anchor="e", padx=10)
+
         self.results_manager = ResultManager(
             parent_frame=self.right_frame,
             results_tree=self.results_tree,
@@ -275,7 +278,7 @@ class AnalyseGUI(tb.Window):
         widget = event.widget  # Das Widget, über dem die Maus ist
 
         # Nur scrollen, wenn es sich um eine Listbox, Treeview oder ein Scroll-Widget handelt
-        if isinstance(widget, (tk.Listbox, tb.Treeview, ScrolledText)):
+        if isinstance(widget, (tk.Listbox, ttk.Treeview, ScrolledText)):
             if hasattr(event, 'delta'):  # Windows und MacOS
                 widget.yview_scroll(-1 if event.delta > 0 else 1, "units")
             elif event.num == 4:  # Linux Scroll Up

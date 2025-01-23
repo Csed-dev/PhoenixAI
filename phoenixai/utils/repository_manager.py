@@ -3,7 +3,7 @@
 import os
 import json
 import subprocess
-from tkinter import END, filedialog
+from tkinter import END, filedialog, messagebox
 import tkinter as tk
 import ttkbootstrap as tb
 
@@ -68,12 +68,12 @@ class RepositoryManager:
                     else:
                         self.repositories = json.loads(content)  # JSON einlesen
             except json.JSONDecodeError:
-                tb.messagebox.show_error("Fehler",
+                messagebox.showerror("Fehler",
                                          f"Die Datei {self.repos_file} enthält kein gültiges JSON. Sie wird zurückgesetzt.")
                 self.repositories = []
                 self.save_repositories()  # Korrupte Datei direkt überschreiben
             except Exception as e:
-                tb.messagebox.show_error("Fehler", f"Fehler beim Laden der Repositories:\n{e}")
+                messagebox.showerror("Fehler", f"Fehler beim Laden der Repositories:\n{e}")
                 self.repositories = []
         else:
             self.repositories = []
@@ -84,7 +84,7 @@ class RepositoryManager:
             with open(self.repos_file, "w", encoding="utf-8") as f:
                 json.dump(self.repositories, f, ensure_ascii=False, indent=4)
         except Exception as e:
-            tb.messagebox.show_error("Fehler", f"Fehler beim Speichern der Repositories:\n{e}")
+            messagebox.showerror("Fehler", f"Fehler beim Speichern der Repositories:\n{e}")
 
     def populate_repos_listbox(self):
         """Füllt die Listbox mit den geladenen Repositories."""
@@ -96,7 +96,7 @@ class RepositoryManager:
         """Klonen eines neuen GitHub-Repositories und es zur Liste hinzufügen."""
         url = self.repo_url_entry.get().strip()
         if not url:
-            tb.messagebox.show_warning("Warnung", "Bitte geben Sie eine GitHub Repository URL ein.")
+            messagebox.showwarning("Warnung", "Bitte geben Sie eine GitHub Repository URL ein.")
             return
 
         # Zielverzeichnis auswählen
@@ -111,7 +111,7 @@ class RepositoryManager:
 
         repo_path = os.path.join(dest_dir, repo_name)
         if os.path.exists(repo_path):
-            tb.messagebox.show_error("Fehler", f"Das Verzeichnis '{repo_path}' existiert bereits.")
+            messagebox.showerror("Fehler", f"Das Verzeichnis '{repo_path}' existiert bereits.")
             return
 
         # Klonen des Repositories
@@ -130,10 +130,10 @@ class RepositoryManager:
             self.repo_url_entry.delete(0, END)
 
         except subprocess.CalledProcessError as e:
-            tb.messagebox.show_error("Fehler", f"Fehler beim Klonen des Repositories:\n{e}")
+            messagebox.showerror("Fehler", f"Fehler beim Klonen des Repositories:\n{e}")
             self.set_status(f"Fehler beim Klonen des Repositories '{repo_name}'.")
         except FileNotFoundError:
-            tb.messagebox.show_error("Fehler", "Git ist nicht installiert oder nicht im PATH gefunden.")
+            messagebox.showerror("Fehler", "Git ist nicht installiert oder nicht im PATH gefunden.")
             self.set_status("Git ist nicht installiert oder nicht im PATH gefunden.")
 
     def add_existing_repository(self):
@@ -144,15 +144,16 @@ class RepositoryManager:
 
         git_dir = os.path.join(selected_dir, ".git")
         if not os.path.isdir(git_dir):
-            tb.messagebox.show_error("Fehler",
-                                     "Das ausgewählte Verzeichnis ist kein gültiges Git-Repository ('.git' Ordner fehlt).")
+            messagebox.showerror("Fehler",
+                                 "Das ausgewählte Verzeichnis ist kein gültiges Git-Repository ('.git' Ordner fehlt).")
+
             return
 
         repo_name = os.path.basename(os.path.normpath(selected_dir))
 
         for repo in self.repositories:
             if repo['path'] == selected_dir:
-                tb.messagebox.show_warning("Warnung", "Dieses Repository wurde bereits hinzugefügt.")
+                messagebox.showwarning("Warnung", "Dieses Repository wurde bereits hinzugefügt.")
                 return
 
         # Repo zur Liste hinzufügen
@@ -171,7 +172,8 @@ class RepositoryManager:
         """Entfernt das ausgewählte Repository aus der Liste."""
         selection = self.repos_listbox.curselection()
         if not selection:
-            tb.messagebox.show_warning("Warnung", "Bitte wählen Sie ein Repository zum Entfernen aus.")
+            messagebox.showwarning("Warnung", "Bitte wählen Sie ein Repository zum Entfernen aus.")
+
             return
         index = selection[0]
         repo = self.repositories.pop(index)
