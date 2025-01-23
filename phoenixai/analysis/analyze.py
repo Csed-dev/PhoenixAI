@@ -47,15 +47,15 @@ def filter_component_tree(component_tree):
 
 def sonarqube_analysis():
     logging.info("Starting sonarqube analysis...")
-    sonarqube = SonarQubeClient(sonarqube_url="http://localhost:9000", token='squ_1b4b4a6d4947bc19cf367462027a8ece7f93f3df')
+    sonarqube = SonarQubeClient(sonarqube_url="http://localhost:9000", token='squ_3d7417de160de549c708ffef8ad5b0c0dc295d00')
 
     print(sonarqube.auth.check_credentials())
 
-    issues = sonarqube.issues.search_issues(componentKeys="webscraper_test", branch="main")
+    issues = sonarqube.issues.search_issues(componentKeys="fighter_jet", branch="main")
     filtered_issues = filter_issue_data(issues['issues'])
     print(filtered_issues)
     # print(issues)
-    component_tree = sonarqube.measures.get_component_with_specified_measures(component="phoenix-AI", metricKeys="coverage")
+    component_tree = sonarqube.measures.get_component_with_specified_measures(component="fighter_jet", metricKeys="coverage")
     filtered_component_tree = filter_component_tree(component_tree)
     # print(component_tree)
     print(filtered_component_tree)
