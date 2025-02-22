@@ -1,8 +1,7 @@
-# repository_manager.py
-
 import os
 import json
 import subprocess
+import shutil
 from tkinter import END, filedialog, messagebox
 import tkinter as tk
 import ttkbootstrap as tb
@@ -146,7 +145,6 @@ class RepositoryManager:
         if not os.path.isdir(git_dir):
             messagebox.showerror("Fehler",
                                  "Das ausgewählte Verzeichnis ist kein gültiges Git-Repository ('.git' Ordner fehlt).")
-
             return
 
         repo_name = os.path.basename(os.path.normpath(selected_dir))
@@ -169,14 +167,22 @@ class RepositoryManager:
         self.set_status(f"Repository '{repo_name}' erfolgreich hinzugefügt.")
 
     def remove_repository(self):
-        """Entfernt das ausgewählte Repository aus der Liste."""
+        """Entfernt das ausgewählte Repository aus der Liste und löscht die lokale Kopie."""
         selection = self.repos_listbox.curselection()
         if not selection:
             messagebox.showwarning("Warnung", "Bitte wählen Sie ein Repository zum Entfernen aus.")
-
             return
         index = selection[0]
         repo = self.repositories.pop(index)
+
+        # Lösche die lokale Kopie des Repositories, falls vorhanden
+        if os.path.exists(repo['path']):
+            try:
+                shutil.rmtree(repo['path'])
+                self.set_status(f"Lokale Kopie des Repositories '{repo['name']}' gelöscht.")
+            except Exception as e:
+                messagebox.showerror("Fehler", f"Fehler beim Löschen der lokalen Kopie:\n{e}")
+
         self.populate_repos_listbox()
         self.save_repositories()
         self.set_status(f"Repository '{repo['name']}' entfernt.")

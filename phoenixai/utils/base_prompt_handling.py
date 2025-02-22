@@ -155,16 +155,21 @@ def save_code_to_file(file_path, improved_code, iteration=None):
         iteration (int, optional): The iteration number (ignored).
 
     Returns:
-        str: The path to the saved file."""
-    if ':' in file_path:
-        # go for each element except last in directory, then save
-        # file_path = file_path.split(':')[-1]
-        file_path = file_path.replace(':', '/')
-        improved_code = str(improved_code.split('.py')[1])
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(improved_code)
-    print(f"[Save] Code gespeichert unter: {file_path}")
+        str: The path to the saved file.
+    """
+    try:
+        if ':' in file_path:
+            # go for each element except last in directory, then save
+            # file_path = file_path.split(':')[-1]
+            file_path = file_path.replace(':', '/')
+            improved_code = str(improved_code.split('.py')[1])
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(improved_code)
+        print(f"[Save] Code gespeichert unter: {file_path}")
+    except Exception as error:
+        print(f"[Error] Failed to save code: {error}")
     return file_path
+
 
 
 
