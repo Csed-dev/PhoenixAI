@@ -62,7 +62,7 @@ class NavigationManager:
                 full_path = os.path.join(directory, item)
                 if os.path.isdir(full_path):
                     contents.append(f"{item}/")
-                elif item.endswith(".py"):
+                else:
                     contents.append(item)
         except PermissionError:
             tb.messagebox.show_error("Fehler", f"Zugriff verweigert auf Verzeichnis: {directory}")

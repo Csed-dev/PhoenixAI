@@ -1,5 +1,7 @@
 # pipeline_transform_impl.py
 import os
+
+from phoenixai.pipeline_transformation.port_code import run_porting
 from phoenixai.pipeline_transformation.refactor import (
     save_selected_functions,
     process_single_function, select_functions_to_refactor,
@@ -17,6 +19,7 @@ from phoenixai.pipeline_transformation.sourcery_quick_fix import run_sourcery_fi
 from phoenixai.pipeline_transformation.typ_annotation_updater import (
     annotation_process_file,
 )
+
 
 
 def run_refactor(file_path):
@@ -77,6 +80,10 @@ def run_sourcery(file_path):
 def run_custom_prompt(file_path):
     print(f"[Transform] Custom Prompt für {file_path}")
 
+def run_port(file_path):
+    print(f"[Transform] Portierung für {file_path}")
+    run_porting(file_path)
+
 
 # Dictionary aller Transform-Aktionen
 transform_actions = {
@@ -88,4 +95,5 @@ transform_actions = {
     "Black": run_black,
     "Pylint": run_pylint,
     "Sourcery": run_sourcery,
+    "Portierung": run_port,
 }

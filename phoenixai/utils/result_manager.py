@@ -19,7 +19,7 @@ class ResultManager:
         """Erstellt den Ergebnisbereich der GUI."""
         ergebnisse_label = tb.Label(
             self.parent_frame,
-            text="📊 Analyse-Ergebnisse & Empfehlungen",
+            text="📊 Analyse-Ergebnisse",
             font=("Helvetica", 16, "bold"),
             bootstyle="secondary"
         )
