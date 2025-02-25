@@ -19,7 +19,7 @@ from result_manager import ResultManager
 class AnalyseGUI(tb.Window):
     def __init__(self):
         super().__init__(themename="flatly")  # Wählen Sie ein modernes Theme
-        self.title("Analyse- und Transformations-Tool")
+        self.title("PhoenixAI")
         self.geometry("1800x1200")  # Angepasst für mehr Platz links
 
         # Minimalgröße, damit das Layout nicht völlig bricht

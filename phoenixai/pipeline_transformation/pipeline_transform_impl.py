@@ -1,8 +1,8 @@
 # pipeline_transform_impl.py
 import os
 from phoenixai.pipeline_transformation.refactor import (
-    process_refactoring,
-    extract_functions,
+    save_selected_functions,
+    process_single_function, select_functions_to_refactor,
 )
 from phoenixai.pipeline_transformation.add_docstrings import process_file_for_docstrings
 from phoenixai.utils.base_prompt_handling import (
@@ -19,15 +19,16 @@ from phoenixai.pipeline_transformation.typ_annotation_updater import (
 )
 
 
-def run_refactor(file_path, line_numbers=None):
-    if line_numbers is None:
-        line_numbers = []
-    if not line_numbers:
-        # alle Funktionen
-        all_funcs = extract_functions(file_path)
-        line_numbers = [func["start_line"] for func in all_funcs]
-    print(f"[Transform] Refactor für {file_path}, Zeilen: {line_numbers}")
-    process_refactoring(file_path, line_numbers=line_numbers)
+def run_refactor(file_path):
+    print("[DEBUG] run_refactor gestartet", flush=True)
+    print(f"[Transform] Refactor für {file_path}", flush=True)
+    selected_functions = select_functions_to_refactor(file_path)
+    if not selected_functions:
+        return
+    temp_file_path = save_selected_functions(selected_functions)
+    for func_name in selected_functions:
+        process_single_function(file_path, func_name)
+    os.remove(temp_file_path)
 
 
 def run_add_docstrings(file_path):
