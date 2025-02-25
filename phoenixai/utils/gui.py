@@ -206,8 +206,14 @@ class AnalyseGUI(tb.Window):
         self.results_tree.heading("Status", text="Status")
         self.results_tree.pack(fill="both", expand=True, padx=10, pady=10)
 
-        run_btn = tb.Button(self.left_frame, text="Weiteren Schritt ausführen", command=self.run_next_step_button, bootstyle="success")
+        run_btn = tb.Button(
+            self.left_frame,
+            text="Weiteren Schritt ausführen",
+            command=self.run_next_step_button,
+            bootstyle="success")
         run_btn.pack(pady=10, anchor="e", padx=10)
+
+
 
         self.results_manager = ResultManager(
             parent_frame=self.right_frame,

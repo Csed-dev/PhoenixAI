@@ -1,6 +1,8 @@
 # repository_manager.py
 
 import os
+import shutil
+import pathlib
 import json
 import subprocess
 from tkinter import END, filedialog, messagebox
@@ -17,6 +19,8 @@ class RepositoryManager:
         self.populate_repos = populate_repos_callback
         self.repositories = []
         self.repos_file = "repos.json"
+        self.selection = None
+        self.selected_repo = None
 
         self.build_repository_section()
 
@@ -62,9 +66,25 @@ class RepositoryManager:
         self.repos_listbox.config(yscrollcommand=repos_scroll.set)
         self.repos_listbox.bind("<<ListboxSelect>>", self.on_repo_select)
 
+        # Container für die Buttons erstellen
+        button_frame = tb.Frame(repo_frame)
+        button_frame.pack(padx=0, pady=0, anchor="e")  # Pack bleibt für das Frame erhalten
+
         # Button zum Entfernen des ausgewählten Repos
-        remove_repo_button = tb.Button(repo_frame, text="Repository entfernen", command=self.remove_repository, bootstyle="danger-outline")
-        remove_repo_button.pack(padx=5, pady=5, anchor="w")
+        remove_repo_button = tb.Button(
+            button_frame,
+            text="Repository entfernen",
+            command=self.remove_repository,
+            bootstyle="danger-outline")
+        #remove_repo_button.pack(padx=5, pady=5, anchor="w")
+        remove_repo_button.grid(row=0, column=0, padx=5, pady=5)
+
+        run_analyzing_pipeline_btn = tb.Button(
+            button_frame,
+            text="Starte Analyse Pipeline",
+            command=self.run_analyze_repo,
+            bootstyle="success")
+        run_analyzing_pipeline_btn.grid(row=0, column=1, padx=10, pady=10)
 
         # Laden der Repositories in die Listbox
         self.load_repositories()
@@ -208,12 +228,11 @@ class RepositoryManager:
 
     def remove_repository(self):
         """Entfernt das ausgewählte Repository aus der Liste."""
-        selection = self.repos_listbox.curselection()
-        if not selection:
+        self.selection = self.repos_listbox.curselection()
+        if not self.selection:
             messagebox.showwarning("Warnung", "Bitte wählen Sie ein Repository zum Entfernen aus.")
-
             return
-        index = selection[0]
+        index = self.selection[0]
         repo = self.repositories.pop(index)
         self.populate_repos_listbox()
         self.save_repositories()
@@ -222,9 +241,19 @@ class RepositoryManager:
 
     def on_repo_select(self, event):
         """Handler für die Auswahl eines Repositories aus der Listbox."""
-        selection = self.repos_listbox.curselection()
-        if not selection:
+        self.selection = self.repos_listbox.curselection()
+        if not self.selection:
+            self.selected_repo = None
             return
-        index = selection[0]
-        repo = self.repositories[index]
-        self.populate_repos(repo['path'])  # Aktualisiere das aktuelle Verzeichnis in der GUI
+        index = self.selection[0]
+        self.selected_repo = self.repositories[index]
+        self.populate_repos(self.selected_repo['path'])  # Aktualisiere das aktuelle Verzeichnis in der GUI
+
+    def run_analyze_repo(self):
+        if not self.selection:
+            messagebox.showwarning("Warnung", "Bitte wählen Sie ein Repository zum Analysieren aus.")
+            return
+
+        test = pathlib.Path().resolve()
+        aber = ""
+        #shutil.copyfile(test,aber)

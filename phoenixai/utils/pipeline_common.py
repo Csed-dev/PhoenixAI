@@ -4,6 +4,7 @@ from tkinter import messagebox
 from typing import Callable, Optional, Any, List
 
 
+
 class PipelineStep:
     def __init__(self, name: str, function: Callable, *args, **kwargs):
         self.name = name
