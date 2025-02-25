@@ -16,7 +16,6 @@ from phoenixai.utils.base_prompt_handling import (
 
 
 def extract_functions(file_path):
-    print("[DEBUG] extract_functions gestartet", flush=True)
     with open(file_path, "r", encoding="utf-8") as f:
         code = f.read()
     parsed_ast = ast.parse(code)
@@ -30,7 +29,6 @@ def extract_functions(file_path):
                 "start_line": start_line,
                 "end_line": end_line
             })
-    print("[DEBUG] extract_functions beendet, gefunden:", functions, flush=True)
     return functions
 
 
@@ -53,15 +51,18 @@ def generate_refactoring_prompt(function_code, function_name):
             {function_code}
 
             ### Aufgabe:
-            Refaktoriere die Funktion so, dass sie möglichst nur einen Zweck erfüllt.
-            Überprüfe den Code auf Wiederholungen und unnötige Komplexität.
-            Erstelle **zwei** Funktionsdefinitionen:
-            1. Eine neue Funktion, benannt als "{function_name}_refactored", die den refaktorierten Code enthält.
-            2. Die ursprüngliche Funktion {function_name} soll erhalten bleiben, jedoch mit einem modifizierten Funktionskörper,
-               der **nur** einen Aufruf der neuen Funktion ({function_name}_refactored) beinhaltet.
-            So bleibt der ursprüngliche Funktionskopf erhalten.
-            Gib **nur** den modularisierten Code zurück, ohne zusätzliche Erklärungen oder Kommentare.
+            Refaktoriere den Code so, dass jede neue Funktion jeweils nur eine klar abgegrenzte Aufgabe erfüllt.
+            Erstelle dafür so viele neue Hilfsfunktionen, wie sinnvoll notwendig – mit aussagekräftigen Namen.
+            Die ursprüngliche Funktion {function_name} soll erhalten bleiben, aber zu einer reinen Wrapper-Funktion werden,
+            die nur noch die neu erstellten Hilfsfunktionen aufruft und nichts weiter tut.
+
+            Achte darauf:
+            1. Überflüssige Wiederholungen oder zu komplizierte Abläufe sollen reduziert werden.
+            2. Die neuen Funktionen sollten möglichst selbsterklärende Namen tragen und den Code in logische Einheiten aufteilen.
+            3. Die Semantik der Funktion (das letztliche Ergebnis und Verhalten) muss erhalten bleiben.
+            4. Gib **nur** den komplett refaktorierten Code zurück, ohne zusätzliche Erklärungen oder Kommentare.
     """
+
 
 
 def replace_function_in_code(lines, start_line, end_line, refactored_function):
@@ -73,7 +74,6 @@ def save_selected_functions(selected_functions):
     for func in selected_functions:
         temp_file.write(func + "\n")
     temp_file.close()
-    print(f"[DEBUG] Temporäre Datei mit ausgewählten Funktionen erstellt: {temp_file.name}", flush=True)
     return temp_file.name
 
 
@@ -96,27 +96,22 @@ class FunctionSelectionDialog(simpledialog.Dialog):
 
 
 def select_functions_to_refactor(file_path):
-    print("[DEBUG] select_functions_to_refactor gestartet", flush=True)
     functions = extract_functions(file_path)
     root = tk.Tk()
     root.withdraw()  # Hauptfenster unsichtbar
     dialog = FunctionSelectionDialog(root, functions)
     selected = dialog.result if dialog.result is not None else []
-    print("[DEBUG] Dialog beendet, ausgewählte Funktionen:", selected, flush=True)
     root.destroy()
     return selected
 
 
 def process_single_function(file_path, func_name):
-    print(f"[DEBUG] process_single_function gestartet für: {func_name}", flush=True)
     try:
         function_code, start_line, end_line = extract_function_by_name(file_path, func_name)
-        print(f"[DEBUG] Funktion {func_name} extrahiert (Zeilen {start_line}-{end_line}).", flush=True)
     except ValueError as e:
         print(f"[Refactor] {e}", flush=True)
         return
     prompt = generate_refactoring_prompt(function_code, func_name)
-    print(f"[DEBUG] Sende Prompt an LLM für {func_name} ...", flush=True)
 
     # Asynchroner Aufruf von call_llm in einem separaten Thread
     result_container = {}
@@ -126,14 +121,11 @@ def process_single_function(file_path, func_name):
     thread.start()
     thread.join(timeout=60)  # Warte maximal 60 Sekunden
     if thread.is_alive():
-        print(f"[DEBUG] LLM-Aufruf für {func_name} timed out.", flush=True)
         return
     refactored_code = result_container.get('result', '')
-    print(f"[DEBUG] LLM hat geantwortet für {func_name}: {refactored_code}", flush=True)
     trimmed_refactored_code = trim_code(refactored_code)
     try:
         ast.parse(trimmed_refactored_code)
-        print(f"[DEBUG] Refaktorierter Code für {func_name} erfolgreich geparst.", flush=True)
     except SyntaxError as e:
         print(f"[Refactor] Syntaxfehler im LLM-Code für {func_name}: {e}", flush=True)
         return
@@ -141,11 +133,9 @@ def process_single_function(file_path, func_name):
     lines = original_code.splitlines()
     try:
         _, current_start, current_end = extract_function_by_name(file_path, func_name)
-        print(f"[DEBUG] Aktuelle Position der Funktion {func_name} ermittelt: Zeilen {current_start}-{current_end}", flush=True)
     except ValueError as e:
         print(f"[Refactor] Funktion {func_name} nicht mehr gefunden: {e}", flush=True)
         return
     updated_lines = replace_function_in_code(lines, current_start, current_end, trimmed_refactored_code)
     new_code = "\n".join(updated_lines)
     save_code_to_file(file_path, new_code)
-    print(f"[DEBUG] Funktion {func_name} wurde refactored und ersetzt.", flush=True)

@@ -23,12 +23,19 @@ def run_refactor(file_path):
     print("[DEBUG] run_refactor gestartet", flush=True)
     print(f"[Transform] Refactor für {file_path}", flush=True)
     selected_functions = select_functions_to_refactor(file_path)
+    print("[DEBUG] Nach Dialog, ausgewählte Funktionen:", selected_functions, flush=True)
     if not selected_functions:
+        print("[DEBUG] Keine Funktionen ausgewählt.", flush=True)
         return
+    print("[DEBUG] Refactor beginnt", flush=True)
     temp_file_path = save_selected_functions(selected_functions)
+    print(f"[DEBUG] Temp-Datei erstellt: {temp_file_path}", flush=True)
     for func_name in selected_functions:
+        print(f"[DEBUG] Bearbeite Funktion: {func_name}", flush=True)
         process_single_function(file_path, func_name)
+        print(f"[DEBUG] Prozess für Funktion {func_name} beendet", flush=True)
     os.remove(temp_file_path)
+    print(f"[DEBUG] Temporäre Datei {temp_file_path} gelöscht.", flush=True)
 
 
 def run_add_docstrings(file_path):
