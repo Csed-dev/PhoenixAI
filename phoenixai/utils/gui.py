@@ -20,7 +20,7 @@ class AnalyseGUI(tb.Window):
     def __init__(self):
         super().__init__(themename="flatly")  # Wählen Sie ein modernes Theme
         self.title("Analyse- und Transformations-Tool")
-        self.geometry("1800x1000")  # Angepasst für mehr Platz links
+        self.geometry("1800x1200")  # Angepasst für mehr Platz links
 
         # Minimalgröße, damit das Layout nicht völlig bricht
         self.minsize(1200, 800)

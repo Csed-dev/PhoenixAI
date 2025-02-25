@@ -199,6 +199,9 @@ Black-Ausgabe:
 {e.stderr}"""
         ) from e
 
+def remove_unused_imports(file_path):
+    subprocess.run(["autoflake", "--remove-all-unused-imports", "--in-place", file_path])
+
 
 def apply_isort_to_file(file_path):
     """Applies isort to the given file to sort imports.
@@ -223,6 +226,7 @@ def apply_isort_to_file(file_path):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        remove_unused_imports(file_path)
         print(f"[Isort] Die Datei {file.resolve()} wurde erfolgreich bearbeitet.")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(
