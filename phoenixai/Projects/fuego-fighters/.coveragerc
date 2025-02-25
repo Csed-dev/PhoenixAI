@@ -1,0 +1,12 @@
+[run]
+source = /app
+omit =
+    /app/startup.py
+    */tests/*
+    */.venv/*
+    */site-packages/*
+    */__pycache__/*
+
+[html]
+directory = /app/coverage_report
+title = Code Coverage Report
