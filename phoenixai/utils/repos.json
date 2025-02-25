@@ -1,6 +1,14 @@
 [
-  {
-    "name": "PhoenixAI",
-    "path": "/Users/jozef/PycharmProjects/PhoenixAI"
-  }
+    {
+        "name": "PhoenixAI",
+        "path": "/Users/jozef/PycharmProjects/PhoenixAI"
+    },
+    {
+        "name": "fuego-fighters",
+        "path": "C:/Users/Dragon/Desktop/Desktop/Studium/Semesterprojekt-Legacy_Code/PhoenixAI/phoenixai/Projects/fuego-fighters"
+    },
+    {
+        "name": "Aufgabe1",
+        "path": "C:/Users/Dragon/PycharmProjects/Aufgabe1"
+    }
 ]

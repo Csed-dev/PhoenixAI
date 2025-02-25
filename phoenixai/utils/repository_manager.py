@@ -7,6 +7,9 @@ from tkinter import END, filedialog, messagebox
 import tkinter as tk
 import ttkbootstrap as tb
 
+from docs.source.conf import project
+
+
 class RepositoryManager:
     def __init__(self, parent_frame, set_status_callback, populate_repos_callback):
         self.parent_frame = parent_frame
@@ -32,9 +35,19 @@ class RepositoryManager:
         clone_button = tb.Button(repo_frame, text="Repository klonen", command=self.clone_repository, bootstyle="primary")
         clone_button.pack(padx=5, pady=5, anchor="w")
 
+        # Container für die Buttons erstellen
+        button_frame = tb.Frame(repo_frame)
+        button_frame.pack(padx=0, pady=0, anchor="w")  # Pack bleibt für das Frame erhalten
+
         # Button zum Hinzufügen eines bestehenden Repos
-        add_existing_repo_button = tb.Button(repo_frame, text="Bestehendes Repository hinzufügen", command=self.add_existing_repository, bootstyle="primary")
-        add_existing_repo_button.pack(padx=5, pady=5, anchor="w")
+        add_existing_repo_button = tb.Button(button_frame, text="Bestehendes Repository hinzufügen",
+                                             command=self.add_existing_repository, bootstyle="primary")
+        add_existing_repo_button.grid(row=0, column=0, padx=5, pady=5)
+
+        # Button zum Hinzufügen eines bestehenden Projekts (rechts daneben)
+        add_existing_project_button = tb.Button(button_frame, text="Bestehendes Projekt hinzufügen",
+                                                command=self.add_existing_project, bootstyle="primary")
+        add_existing_project_button.grid(row=0, column=1, padx=5, pady=5)
 
         # Listbox zur Anzeige der geklonten Repositories
         repos_list_label = tb.Label(repo_frame, text="Geklonte Repositories:", bootstyle="secondary")
@@ -135,6 +148,31 @@ class RepositoryManager:
         except FileNotFoundError:
             messagebox.showerror("Fehler", "Git ist nicht installiert oder nicht im PATH gefunden.")
             self.set_status("Git ist nicht installiert oder nicht im PATH gefunden.")
+
+    def add_existing_project(self):
+        """Hinzufügen eines bestehenden lokalen Python Projekts."""
+        selected_dir = filedialog.askdirectory(title="Bestehendes Projekt auswählen")
+        if not selected_dir:
+            return
+
+        project_name = os.path.basename(os.path.normpath(selected_dir))
+
+        for repo in self.repositories:
+            if repo['path'] == selected_dir:
+                messagebox.showwarning("Warnung", "Dieses Projekt wurde bereits hinzugefügt.")
+                return
+
+        # Repo zur Liste hinzufügen
+        self.repositories.append({
+            'name': project_name,
+            'path': selected_dir
+        })
+
+        # Hier Speichern ERZWINGEN
+        self.save_repositories()
+
+        self.populate_repos_listbox()
+        self.set_status(f"Projekt '{project_name}' erfolgreich hinzugefügt.")
 
     def add_existing_repository(self):
         """Hinzufügen eines bestehenden lokalen Git-Repositories."""
