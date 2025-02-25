@@ -254,6 +254,67 @@ class RepositoryManager:
             messagebox.showwarning("Warnung", "Bitte wählen Sie ein Repository zum Analysieren aus.")
             return
 
-        test = pathlib.Path().resolve()
-        aber = ""
-        #shutil.copyfile(test,aber)
+        self.add_dockerfile_and_startup_to_project(self.selected_repo['path'])
+
+        # Change directory to the destination path
+        original_dir = os.getcwd()
+        os.chdir(str(self.selected_repo['path']))
+
+        try:
+            # Build the Docker image
+            print("Building Docker image...")
+            print("original_dir:" + str(original_dir))
+            print("current_dir:" + str(pathlib.Path().resolve()))
+            subprocess.run(["docker", "build", "--no-cache", "-t", self.selected_repo['name'], "."], check=True)
+
+            # Run the Docker container with the correct volume mapping
+            print("Running Docker container...")
+
+            # Get the absolute path in a cross-platform way
+            current_dir = str(pathlib.Path().resolve())
+
+            # Run the Docker container
+            subprocess.run([
+                "docker", "run", "--rm",
+                "-v", f"{current_dir}:/app",
+                self.selected_repo['name']
+            ], check=True)
+
+            print("Docker container executed successfully")
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing Docker command: {e}")
+        finally:
+            # Change back to the original directory
+            os.chdir(original_dir)
+
+
+    @staticmethod
+    def add_dockerfile_and_startup_to_project(destination_path):
+        # Get the current absolute path
+        current_path = pathlib.Path().resolve()
+
+        # Navigate to the project root by finding 'phoenixai' directory
+        project_root = current_path
+        while project_root.name != 'phoenixai' and project_root.parent != project_root:
+            project_root = project_root.parent
+
+        # If we couldn't find 'phoenixai' directory, raise an error
+        if project_root.name != 'phoenixai':
+            raise FileNotFoundError("Could not locate the 'phoenixai' directory in the path hierarchy")
+
+        # Path to the docker files
+        docker_files_dir = project_root / "docker_standard" / "python3_procedure"
+        # TODO: Process for python2_procedure (which currently does not exist) needs to be implemented in the future
+
+        # Files to copy
+        dockerfile = docker_files_dir / "Dockerfile"
+        startup_script = docker_files_dir / "startup.py"
+
+        # Ensure destination directory exists
+        destination_path = pathlib.Path(destination_path)
+        destination_path.mkdir(parents=True, exist_ok=True)
+
+        # Copy the files
+        shutil.copyfile(dockerfile, destination_path / "Dockerfile")
+        shutil.copyfile(startup_script, destination_path / "startup.py")
