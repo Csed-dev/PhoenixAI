@@ -20,7 +20,7 @@ class AnalyseGUI(tb.Window):
     def __init__(self):
         super().__init__(themename="flatly")  # Wählen Sie ein modernes Theme
         self.title("Analyse- und Transformations-Tool")
-        self.geometry("1200x1000")  # Angepasst für mehr Platz links
+        self.geometry("1800x1000")  # Angepasst für mehr Platz links
 
         # Minimalgröße, damit das Layout nicht völlig bricht
         self.minsize(1200, 800)
@@ -295,7 +295,7 @@ class AnalyseGUI(tb.Window):
         if step.name in analysis_actions:
             # Beispiel: Name Checker generiert einen Report
             # Hier sollten Sie den tatsächlichen Report-Pfad erhalten, falls möglich
-            fake_report_path = "name_checker_report.md"  # Dies sollte durch den tatsächlichen Report-Pfad ersetzt werden
+            fake_report_path = "../reports/name_checker_report.md"  # Dies sollte durch den tatsächlichen Report-Pfad ersetzt werden
             step_result = f"Report: {fake_report_path}"
         else:
             step_result = "OK"

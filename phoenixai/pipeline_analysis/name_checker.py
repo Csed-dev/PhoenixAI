@@ -184,7 +184,7 @@ Hier ist der gesamte Code:
             for s in func_suggestions:
                 lines = ", ".join(map(str, s.get("line_numbers", [])))
                 self.report.append(
-                    f"- **Altes Name:** `{s['old_name']}` (Zeile(n): {lines})\n"
+                    f"- **Alter Name:** `{s['old_name']}` (Zeile(n): {lines})\n"
                     f"  - **Neues Name:** `{s['new_name']}`\n"
                     f"  - **Begründung:** {s['reason']}\n"
                 )
@@ -196,7 +196,7 @@ Hier ist der gesamte Code:
             for s in method_suggestions:
                 lines = ", ".join(map(str, s.get("line_numbers", [])))
                 self.report.append(
-                    f"- **Altes Name:** `{s['old_name']}` (Zeile(n): {lines})\n"
+                    f"- **Alter Name:** `{s['old_name']}` (Zeile(n): {lines})\n"
                     f"  - **Neues Name:** `{s['new_name']}`\n"
                     f"  - **Begründung:** {s['reason']}\n"
                 )
