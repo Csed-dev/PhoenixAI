@@ -1,8 +1,11 @@
+"""
+This module provides functions for automatically adding type annotations to Python code using an LLM.
+"""
+
 import ast
 import astor
 import subprocess
 import shutil
-
 from phoenixai.utils.base_prompt_handling import (
     trim_code,
     read_file,
@@ -11,16 +14,15 @@ from phoenixai.utils.base_prompt_handling import (
     run_black_and_isort,
 )
 
+
 def generate_type_annotation_prompt(code_snippet):
-    """
-    Generates a prompt for the LLM to create or update type annotations for the given Python code snippet.
+    """Generates a prompt for the LLM to create or update type annotations for the given Python code snippet.
 
     Args:
         code_snippet (str): The Python code snippet for which to generate type annotations.
 
     Returns:
-        str: The formatted prompt for the LLM.
-    """
+        str: The formatted prompt for the LLM."""
     return f"""
 Here is the Python code: {code_snippet}
 
@@ -41,9 +43,9 @@ Your task is to generate and insert **type annotations** for all classes, method
 3. Ensure that the updated code adheres to PEP 484 (Type Hints) guidelines.
 """
 
+
 def insert_type_annotations(original_code, llm_response):
-    """
-    Inserts the generated type annotations into the original code or replaces existing annotations.
+    """Inserts the generated type annotations into the original code or replaces existing annotations.
 
     Args:
         original_code (str): The original Python code.
@@ -51,40 +53,54 @@ def insert_type_annotations(original_code, llm_response):
 
     Returns:
         str: The updated Python code with type annotations.
-    """
+
+    Raises:
+        RuntimeError: If an error occurs during the insertion process."""
     try:
         original_ast = ast.parse(original_code)
         llm_ast = ast.parse(llm_response)
-
         for node in original_ast.body:
             if isinstance(node, ast.FunctionDef):
-                # Find the matching function in the LLM response
                 for llm_node in llm_ast.body:
-                    if isinstance(llm_node, ast.FunctionDef) and node.name == llm_node.name:
-                        # Update argument annotations
-                        for orig_arg, llm_arg in zip(node.args.args, llm_node.args.args):
+                    if (
+                        isinstance(llm_node, ast.FunctionDef)
+                        and node.name == llm_node.name
+                    ):
+                        for orig_arg, llm_arg in zip(
+                            node.args.args, llm_node.args.args
+                        ):
                             orig_arg.annotation = llm_arg.annotation
-                        # Update return annotation
                         node.returns = llm_node.returns
-
         return astor.to_source(original_ast)
     except Exception as e:
         raise RuntimeError(f"Fehler beim Einfügen der Typannotationen: {e}") from e
 
+
 def add_missing_typing_imports(code: str) -> str:
-    """
-    Scans the code for type annotations and automatically inserts missing imports from the typing module.
+    """Scans the code for type annotations and automatically inserts missing imports from the typing module.
 
     Args:
         code (str): The Python code to process.
 
     Returns:
         str: The updated Python code with necessary typing imports.
-    """
-    required_types = {"Any", "List", "Dict", "Optional", "Union", "Tuple", "Set", "Self"}
+
+    Raises:
+        RuntimeError: If an error occurs during code parsing."""
+    required_types = {
+        "Any",
+        "List",
+        "Dict",
+        "Optional",
+        "Union",
+        "Tuple",
+        "Set",
+        "Self",
+    }
     found_types = set()
 
     class TypeAnnotationVisitor(ast.NodeVisitor):
+
         def visit_FunctionDef(self, node):
             for arg in node.args.args:
                 if arg.annotation:
@@ -109,7 +125,6 @@ def add_missing_typing_imports(code: str) -> str:
                 for elt in node.elts:
                     self.process_annotation(elt)
             elif isinstance(node, ast.Attribute):
-                # Skip attributes; assume proper qualified names are used
                 pass
             elif isinstance(node, ast.Call):
                 for arg in node.args:
@@ -121,20 +136,16 @@ def add_missing_typing_imports(code: str) -> str:
         visitor.visit(tree)
     except Exception as e:
         raise RuntimeError(f"Fehler beim Parsen des Codes: {e}") from e
-
-    # Check for existing typing imports
     existing_imports = set()
     for node in tree.body:
         if isinstance(node, ast.ImportFrom) and node.module == "typing":
             for alias in node.names:
                 existing_imports.add(alias.name)
-
     missing_imports = found_types - existing_imports
     if missing_imports:
         import_line = f"from typing import {', '.join(sorted(missing_imports))}\n"
         lines = code.splitlines()
         insert_pos = 0
-        # If there is a module docstring, insert after it
         if lines and lines[0].startswith('"""'):
             for i in range(1, len(lines)):
                 if lines[i].strip().endswith('"""'):
@@ -144,13 +155,13 @@ def add_missing_typing_imports(code: str) -> str:
         code = "\n".join(lines)
     return code
 
+
 def annotation_process_file(file_path):
     """Complete process for generating and inserting type annotations, auto-adding necessary typing imports,
     and then applying isort.
 
     Args:
-        file_path (str): The path to the file to be processed.
-    """
+        file_path (str): The path to the file to be processed."""
     original_code = read_file(file_path)
     prompt = generate_type_annotation_prompt(original_code)
     llm_response = call_llm(prompt)
