@@ -3,7 +3,6 @@ import subprocess
 
 from phoenixai.pipeline_analysis.name_checker import NameChecker
 from phoenixai.pipeline_analysis.performance_analysis import analyze_target, generate_report
-from phoenixai.pipeline_analysis.visualize_arch import save_arch_report
 
 
 def run_analyze_arch(file_path):
