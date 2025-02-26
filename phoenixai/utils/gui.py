@@ -19,8 +19,8 @@ from result_manager import ResultManager
 class AnalyseGUI(tb.Window):
     def __init__(self):
         super().__init__(themename="flatly")  # Wählen Sie ein modernes Theme
-        self.title("Analyse- und Transformations-Tool")
-        self.geometry("1200x1000")  # Angepasst für mehr Platz links
+        self.title("PhoenixAI")
+        self.geometry("1950x1200")  # Angepasst für mehr Platz links
 
         # Minimalgröße, damit das Layout nicht völlig bricht
         self.minsize(1200, 800)
@@ -242,7 +242,8 @@ class AnalyseGUI(tb.Window):
         path = os.path.join(self.navigation_manager.current_directory, selected_item).rstrip("/")
         if os.path.isdir(path):
             self.navigation_manager.update_directory_list(path)
-        elif path.endswith(".py"):
+        #else if path.endswith(".py"):
+        else:
             self.selected_file = path
             self.confirm_actions()
 
@@ -295,7 +296,7 @@ class AnalyseGUI(tb.Window):
         if step.name in analysis_actions:
             # Beispiel: Name Checker generiert einen Report
             # Hier sollten Sie den tatsächlichen Report-Pfad erhalten, falls möglich
-            fake_report_path = "name_checker_report.md"  # Dies sollte durch den tatsächlichen Report-Pfad ersetzt werden
+            fake_report_path = "../reports/name_checker_report.md"  # Dies sollte durch den tatsächlichen Report-Pfad ersetzt werden
             step_result = f"Report: {fake_report_path}"
         else:
             step_result = "OK"

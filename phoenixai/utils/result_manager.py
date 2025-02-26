@@ -1,10 +1,18 @@
-# result_manager.py
-
 import ttkbootstrap as tb
 from tkinter import END, filedialog
 from tkinter.scrolledtext import ScrolledText
 import json
 import csv
+import webbrowser
+import urllib.parse
+import subprocess
+import socket
+import os
+from pathlib import Path
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
 
 class ResultManager:
     def __init__(self, parent_frame, results_tree, set_status_callback):
@@ -19,7 +27,7 @@ class ResultManager:
         """Erstellt den Ergebnisbereich der GUI."""
         ergebnisse_label = tb.Label(
             self.parent_frame,
-            text="📊 Analyse-Ergebnisse & Empfehlungen",
+            text="📊 Analyse-Ergebnisse",
             font=("Helvetica", 16, "bold"),
             bootstyle="secondary"
         )
@@ -55,49 +63,19 @@ class ResultManager:
         self.results.append({"Script": script, "Ergebnis": result, "Status": status})
 
     def show_details(self):
-        selected_item = self.results_tree.selection()
-        if not selected_item:
-            self.set_status("Bitte wählen Sie ein Ergebnis aus.")
-            return
-        item = self.results_tree.item(selected_item)
-        script, result, status = item["values"]
-
-        # Spezieller Fall: "Name Checker"
-        if script == "Name Checker" and "Report:" in result:
-            report_path = result.split(": ")[1]
+        flask_url = "http://localhost:5000/"
+        # Prüfe, ob auf Port 5000 bereits eine Flask-App läuft; wenn nicht, starte sie.
+        if not is_port_in_use(5000):
+            base_dir = Path(__file__).parent
+            app_path = str(base_dir / "app.py")
             try:
-                with open(report_path, "r", encoding="utf-8") as f:
-                    report_content = f.read()
-                detail_window = tb.Toplevel(self.parent_frame)
-                detail_window.title(f"Details zu {script}")
-                detail_window.geometry("800x600")
+                subprocess.Popen(["python", app_path])
+                self.set_status("Flask-App gestartet.")
+            except Exception as e:
+                self.set_status(f"Fehler beim Starten der Flask-App: {e}")
+                return
 
-                detail_label = tb.Label(detail_window, text=f"Details zu {script}", font=("Helvetica", 14, "bold"), bootstyle="secondary")
-                detail_label.pack(anchor="w", pady=10, padx=10)
-
-                detail_text = ScrolledText(detail_window, state="normal", font=("Helvetica", 12))
-                detail_text.pack(fill="both", expand=True, padx=10, pady=5)
-                detail_text.insert(tb.END, report_content)
-                detail_text.config(state="disabled")
-            except FileNotFoundError:
-                tb.messagebox.show_error("Fehler", f"Report-Datei nicht gefunden: {report_path}")
-                self.set_status(f"Report-Datei nicht gefunden: {report_path}")
-        else:
-            # Standard-Details
-            detail_window = tb.Toplevel(self.parent_frame)
-            detail_window.title(f"Details zu {script}")
-            detail_window.geometry("500x400")
-
-            detail_label = tb.Label(detail_window, text=f"Details zu {script}", font=("Helvetica", 14, "bold"), bootstyle="secondary")
-            detail_label.pack(anchor="w", pady=10, padx=10)
-
-            detail_text = ScrolledText(detail_window, state="normal", font=("Helvetica", 12))
-            detail_text.pack(fill="both", expand=True, padx=10, pady=5)
-            detail_text.insert(
-                tb.END,
-                f"Ergebnis: {result}\nStatus: {status}\n\nWeitere Details können hier angezeigt werden."
-            )
-            detail_text.config(state="disabled")
+        webbrowser.open(flask_url)
 
     def compare_results(self):
         # Placeholder
@@ -110,16 +88,12 @@ class ResultManager:
         export_window = tb.Toplevel(self.parent_frame)
         export_window.title("Exportieren")
         export_window.geometry("350x250")
-
         export_label = tb.Label(export_window, text="Wählen Sie ein Exportformat:", font=("Helvetica", 14, "bold"), bootstyle="secondary")
         export_label.pack(pady=20)
-
         json_button = tb.Button(export_window, text="Als JSON exportieren", command=lambda: self.export_as("json"), bootstyle="primary-outline")
         json_button.pack(fill="x", padx=50, pady=10)
-
         csv_button = tb.Button(export_window, text="Als CSV exportieren", command=lambda: self.export_as("csv"), bootstyle="primary-outline")
         csv_button.pack(fill="x", padx=50, pady=10)
-
         md_button = tb.Button(export_window, text="Als Markdown exportieren", command=lambda: self.export_as("md"), bootstyle="primary-outline")
         md_button.pack(fill="x", padx=50, pady=10)
 
@@ -136,6 +110,7 @@ class ResultManager:
                     json.dump(self.results, f, ensure_ascii=False, indent=4)
             elif format == "csv":
                 with open(file_path, "w", newline='', encoding="utf-8") as f:
+                    import csv
                     writer = csv.DictWriter(f, fieldnames=["Script", "Ergebnis", "Status"])
                     writer.writeheader()
                     writer.writerows(self.results)

@@ -1,5 +1,3 @@
-# action_manager.py (angepasst)
-
 import ttkbootstrap as tb
 from tkinter import messagebox
 
@@ -40,11 +38,15 @@ class ActionManager:
         """Bestätigt die ausgewählten Aktionen und fügt sie der Pipeline hinzu."""
         chosen_analysis = [name for name, info in self.analysis_vars.items() if info["var"].get()]
         chosen_transform = [name for name, info in self.transform_vars.items() if info["var"].get()]
+
+        # Prüfe, ob mindestens eine Aktion ausgewählt wurde
         if (not chosen_analysis) and (not chosen_transform):
             tb.messagebox.show_warning("Warnung", "Bitte wähle mindestens eine Aktion (Analyse oder Transform).")
             return
+
+        # Prüfe, ob überhaupt eine Datei ausgewählt wurde
         if not selected_file:
-            tb.messagebox.show_warning("Warnung", "Bitte wähle eine .py Datei aus.")
+            tb.messagebox.show_warning("Warnung", "Bitte wähle eine Datei aus.")
             return
 
         for a in chosen_analysis:
@@ -56,3 +58,4 @@ class ActionManager:
             func = self.transform_vars[t]["function"]
             if func:
                 self.pipeline.add_step(t, func, selected_file)
+
