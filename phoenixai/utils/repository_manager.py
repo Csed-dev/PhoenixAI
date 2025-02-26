@@ -1,10 +1,15 @@
 import os
+import shutil
+import pathlib
 import json
 import subprocess
 import shutil
 from tkinter import END, filedialog, messagebox
 import tkinter as tk
 import ttkbootstrap as tb
+
+from docs.source.conf import project
+
 
 class RepositoryManager:
     def __init__(self, parent_frame, set_status_callback, populate_repos_callback):
@@ -13,6 +18,8 @@ class RepositoryManager:
         self.populate_repos = populate_repos_callback
         self.repositories = []
         self.repos_file = "repos.json"
+        self.selection = None
+        self.selected_repo = None
 
         self.build_repository_section()
 
@@ -31,9 +38,19 @@ class RepositoryManager:
         clone_button = tb.Button(repo_frame, text="Repository klonen", command=self.clone_repository, bootstyle="primary")
         clone_button.pack(padx=5, pady=5, anchor="w")
 
+        # Container für die Buttons erstellen
+        button_frame = tb.Frame(repo_frame)
+        button_frame.pack(padx=0, pady=0, anchor="w")  # Pack bleibt für das Frame erhalten
+
         # Button zum Hinzufügen eines bestehenden Repos
-        add_existing_repo_button = tb.Button(repo_frame, text="Bestehendes Repository hinzufügen", command=self.add_existing_repository, bootstyle="primary")
-        add_existing_repo_button.pack(padx=5, pady=5, anchor="w")
+        add_existing_repo_button = tb.Button(button_frame, text="Bestehendes Repository hinzufügen",
+                                             command=self.add_existing_repository, bootstyle="primary")
+        add_existing_repo_button.grid(row=0, column=0, padx=5, pady=5)
+
+        # Button zum Hinzufügen eines bestehenden Projekts (rechts daneben)
+        add_existing_project_button = tb.Button(button_frame, text="Bestehendes Projekt hinzufügen",
+                                                command=self.add_existing_project, bootstyle="primary")
+        add_existing_project_button.grid(row=0, column=1, padx=5, pady=5)
 
         # Listbox zur Anzeige der geklonten Repositories
         repos_list_label = tb.Label(repo_frame, text="Geklonte Repositories:", bootstyle="secondary")
@@ -48,9 +65,25 @@ class RepositoryManager:
         self.repos_listbox.config(yscrollcommand=repos_scroll.set)
         self.repos_listbox.bind("<<ListboxSelect>>", self.on_repo_select)
 
+        # Container für die Buttons erstellen
+        button_frame = tb.Frame(repo_frame)
+        button_frame.pack(padx=0, pady=0, anchor="e")  # Pack bleibt für das Frame erhalten
+
         # Button zum Entfernen des ausgewählten Repos
-        remove_repo_button = tb.Button(repo_frame, text="Repository entfernen", command=self.remove_repository, bootstyle="danger-outline")
-        remove_repo_button.pack(padx=5, pady=5, anchor="w")
+        remove_repo_button = tb.Button(
+            button_frame,
+            text="Repository entfernen",
+            command=self.remove_repository,
+            bootstyle="danger-outline")
+        #remove_repo_button.pack(padx=5, pady=5, anchor="w")
+        remove_repo_button.grid(row=0, column=0, padx=5, pady=5)
+
+        run_analyzing_pipeline_btn = tb.Button(
+            button_frame,
+            text="Starte Analyse Pipeline",
+            command=self.run_analyze_repo,
+            bootstyle="success")
+        run_analyzing_pipeline_btn.grid(row=0, column=1, padx=10, pady=10)
 
         # Laden der Repositories in die Listbox
         self.load_repositories()
@@ -135,6 +168,31 @@ class RepositoryManager:
             messagebox.showerror("Fehler", "Git ist nicht installiert oder nicht im PATH gefunden.")
             self.set_status("Git ist nicht installiert oder nicht im PATH gefunden.")
 
+    def add_existing_project(self):
+        """Hinzufügen eines bestehenden lokalen Python Projekts."""
+        selected_dir = filedialog.askdirectory(title="Bestehendes Projekt auswählen")
+        if not selected_dir:
+            return
+
+        project_name = os.path.basename(os.path.normpath(selected_dir))
+
+        for repo in self.repositories:
+            if repo['path'] == selected_dir:
+                messagebox.showwarning("Warnung", "Dieses Projekt wurde bereits hinzugefügt.")
+                return
+
+        # Repo zur Liste hinzufügen
+        self.repositories.append({
+            'name': project_name,
+            'path': selected_dir
+        })
+
+        # Hier Speichern ERZWINGEN
+        self.save_repositories()
+
+        self.populate_repos_listbox()
+        self.set_status(f"Projekt '{project_name}' erfolgreich hinzugefügt.")
+
     def add_existing_repository(self):
         """Hinzufügen eines bestehenden lokalen Git-Repositories."""
         selected_dir = filedialog.askdirectory(title="Bestehendes Repository auswählen")
@@ -167,12 +225,12 @@ class RepositoryManager:
         self.set_status(f"Repository '{repo_name}' erfolgreich hinzugefügt.")
 
     def remove_repository(self):
-        """Entfernt das ausgewählte Repository aus der Liste und löscht die lokale Kopie."""
-        selection = self.repos_listbox.curselection()
-        if not selection:
+        """Entfernt das ausgewählte Repository aus der Liste."""
+        self.selection = self.repos_listbox.curselection()
+        if not self.selection:
             messagebox.showwarning("Warnung", "Bitte wählen Sie ein Repository zum Entfernen aus.")
             return
-        index = selection[0]
+        index = self.selection[0]
         repo = self.repositories.pop(index)
 
         # Lösche die lokale Kopie des Repositories, falls vorhanden
@@ -190,9 +248,86 @@ class RepositoryManager:
 
     def on_repo_select(self, event):
         """Handler für die Auswahl eines Repositories aus der Listbox."""
-        selection = self.repos_listbox.curselection()
-        if not selection:
+        self.selection = self.repos_listbox.curselection()
+        if not self.selection:
+            self.selected_repo = None
             return
-        index = selection[0]
-        repo = self.repositories[index]
-        self.populate_repos(repo['path'])  # Aktualisiere das aktuelle Verzeichnis in der GUI
+        index = self.selection[0]
+        self.selected_repo = self.repositories[index]
+        self.populate_repos(self.selected_repo['path'])  # Aktualisiere das aktuelle Verzeichnis in der GUI
+
+    def run_analyze_repo(self):
+        if not self.selection:
+            messagebox.showwarning("Warnung", "Bitte wählen Sie ein Repository zum Analysieren aus.")
+            return
+
+        self.add_dockerfile_and_startup_to_project(self.selected_repo['path'])
+
+        # Change directory to the destination path
+        original_dir = os.getcwd()
+        os.chdir(str(self.selected_repo['path']))
+
+        try:
+            # Build the Docker image
+            print("Building Docker image...")
+            print("original_dir:" + str(original_dir))
+            print("current_dir:" + str(pathlib.Path().resolve()))
+            subprocess.run(["docker", "build", "--no-cache", "-t", self.selected_repo['name'], "."], check=True)
+
+            # Run the Docker container with the correct volume mapping
+            print("Running Docker container...")
+
+            # Get the absolute path in a cross-platform way
+            current_dir = str(pathlib.Path().resolve())
+
+            # Run the Docker container
+            subprocess.run([
+                "docker", "run", "--rm",
+                "-v", f"{current_dir}:/app",
+                self.selected_repo['name']
+            ], check=True)
+
+            print("Docker container executed successfully")
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing Docker command: {e}")
+        finally:
+            # Change back to the original directory
+            os.chdir(original_dir)
+
+
+    @staticmethod
+    def add_dockerfile_and_startup_to_project(destination_path):
+        # Get the current absolute path
+        current_path = pathlib.Path().resolve()
+
+        # Navigate to the project root by finding 'phoenixai' directory
+        project_root = current_path
+        while project_root.name != 'phoenixai' and project_root.parent != project_root:
+            project_root = project_root.parent
+
+        # If we couldn't find 'phoenixai' directory, raise an error
+        if project_root.name != 'phoenixai':
+            raise FileNotFoundError("Could not locate the 'phoenixai' directory in the path hierarchy")
+
+        # Path to the docker files
+        docker_files_dir = project_root / "docker_standard" / "python3_procedure"
+        # TODO: Process for python2_procedure (which currently does not exist) needs to be implemented in the future
+
+        # Files to copy
+        dockerfile = docker_files_dir / "Dockerfile"
+        startup_script = docker_files_dir / "startup.py"
+
+        # Ensure destination directory exists
+        destination_path = pathlib.Path(destination_path)
+        destination_path.mkdir(parents=True, exist_ok=True)
+
+        # Copy the files only if they don't already exist
+        dest_dockerfile = destination_path / "Dockerfile"
+        dest_startup = destination_path / "startup.py"
+
+        if not dest_dockerfile.exists():
+            shutil.copyfile(dockerfile, dest_dockerfile)
+
+        if not dest_startup.exists():
+            shutil.copyfile(startup_script, dest_startup)

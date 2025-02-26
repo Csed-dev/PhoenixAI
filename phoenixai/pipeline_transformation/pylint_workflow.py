@@ -265,15 +265,11 @@ def extract_error_codes_and_messages(pylint_output):
 
 
 def fetch_error_description_from_db(error_code):
-    """Fetches error description from the database.
-
-    Args:
-        error_code (str): The error code to search for.
-
-    Returns:
-        str: The error description, or None if not found."""
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(base_dir, "..", "database", "code_quality_tests.db")
+    """Fetches error description from the database."""
+    dirname = os.path.dirname(__file__)
+    filename = os.path.join(dirname, "..\\database\\code_quality_tests.db")
+    # db_path = "C:\\Users\\Anwender\\PycharmProjects\\PhoenixAI\\phoenixai\\database\\code_quality_tests.db"
+    db_path = filename
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
