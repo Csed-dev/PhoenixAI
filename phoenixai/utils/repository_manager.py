@@ -289,6 +289,10 @@ class RepositoryManager:
 
         except subprocess.CalledProcessError as e:
             print(f"Error executing Docker command: {e}")
+            messagebox.showwarning("Error", "Error executing Docker command: {e}")
+        except Exception as e:
+            print(f"Error: {e}")
+            messagebox.showwarning("Error", f"Error: {e}")
         finally:
             # Change back to the original directory
             os.chdir(original_dir)
