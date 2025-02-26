@@ -7,6 +7,7 @@ from phoenixai.pipeline_transformation.refactor import (
     process_single_function, select_functions_to_refactor,
 )
 from phoenixai.pipeline_transformation.add_docstrings import process_file_for_docstrings
+from phoenixai.pipeline_transformation.sonarqube_lite import process_issues_from_sonarqube
 from phoenixai.utils.base_prompt_handling import (
     apply_isort_to_file,
     format_file_with_black,
