@@ -40,7 +40,6 @@ def run_refactor(file_path):
     os.remove(temp_file_path)
     print(f"[DEBUG] Temporäre Datei {temp_file_path} gelöscht.", flush=True)
 
-
 def run_add_docstrings(file_path):
     print(f"[Transform] Docstrings für {file_path}")
     process_file_for_docstrings(file_path)
@@ -80,10 +79,12 @@ def run_sourcery(file_path):
 def run_custom_prompt(file_path):
     print(f"[Transform] Custom Prompt für {file_path}")
 
+def run_sonar_qube_analysis(file_path):
+    process_issues_from_sonarqube(file_path)
+    
 def run_port(file_path):
     print(f"[Transform] Portierung für {file_path}")
     run_porting(file_path)
-
 
 # Dictionary aller Transform-Aktionen
 transform_actions = {
@@ -95,5 +96,7 @@ transform_actions = {
     "Black": run_black,
     "Pylint": run_pylint,
     "Sourcery": run_sourcery,
+    "Custom Prompt": run_custom_prompt,
+    "SonarQube": run_sonar_qube_analysis,
     "Portierung": run_port,
 }
