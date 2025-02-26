@@ -5,6 +5,14 @@ import json
 import csv
 import webbrowser
 import urllib.parse
+import subprocess
+import socket
+import os
+from pathlib import Path
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
 
 class ResultManager:
     def __init__(self, parent_frame, results_tree, set_status_callback):
@@ -55,35 +63,19 @@ class ResultManager:
         self.results.append({"Script": script, "Ergebnis": result, "Status": status})
 
     def show_details(self):
-        selected_item = self.results_tree.selection()
-        if not selected_item:
-            self.set_status("Bitte wählen Sie ein Ergebnis aus.")
-            return
-        item = self.results_tree.item(selected_item)
-        script, result, status = item["values"]
+        flask_url = "http://localhost:5000/"
+        # Prüfe, ob auf Port 5000 bereits eine Flask-App läuft; wenn nicht, starte sie.
+        if not is_port_in_use(5000):
+            base_dir = Path(__file__).parent
+            app_path = str(base_dir / "app.py")
+            try:
+                subprocess.Popen(["python", app_path])
+                self.set_status("Flask-App gestartet.")
+            except Exception as e:
+                self.set_status(f"Fehler beim Starten der Flask-App: {e}")
+                return
 
-        # Falls im Ergebnis ein Report-Pfad enthalten ist, z.B. "Report: performance_report.md"
-        if "Report:" in result:
-            # Extrahiere den Pfad (alles nach "Report: ")
-            report_path = result.split("Report: ")[1].strip()
-            # URL-encode den Report-Pfad, damit er als Query-Parameter übergeben werden kann
-            encoded_path = urllib.parse.quote(report_path)
-            url = f"http://localhost:5000/view_report?report={encoded_path}"
-            webbrowser.open(url)
-        else:
-            # Fallback: Falls kein Report gefunden wird, öffne ein Standard-Toplevel-Fenster
-            detail_window = tb.Toplevel(self.parent_frame)
-            detail_window.title(f"Details zu {script}")
-            detail_window.geometry("500x400")
-            detail_label = tb.Label(detail_window, text=f"Details zu {script}", font=("Helvetica", 14, "bold"), bootstyle="secondary")
-            detail_label.pack(anchor="w", pady=10, padx=10)
-            detail_text = ScrolledText(detail_window, state="normal", font=("Helvetica", 12))
-            detail_text.pack(fill="both", expand=True, padx=10, pady=5)
-            detail_text.insert(
-                tb.END,
-                f"Ergebnis: {result}\nStatus: {status}\n\nWeitere Details können hier angezeigt werden."
-            )
-            detail_text.config(state="disabled")
+        webbrowser.open(flask_url)
 
     def compare_results(self):
         # Placeholder

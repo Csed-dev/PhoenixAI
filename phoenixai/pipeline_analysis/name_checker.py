@@ -1,11 +1,14 @@
 import logging
 import json
 import re
-from typing import List, Optional, Dict
+from typing import List, Optional
+import os
+import datetime
 
 import typing_extensions
 import google.generativeai as genai
 
+from phoenixai.pipeline_analysis.report_storage import save_report_generic
 from phoenixai.utils.base_prompt_handling import (
     read_file,
     load_llm_model,
@@ -229,10 +232,10 @@ Hier ist der gesamte Code:
 
         self.update_progress("📝 Report generieren", 100, "Report erfolgreich generiert.")
 
-    def save_report(self, output_path: str):
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.writelines(self.report)
-        print(f"Report gespeichert unter: {output_path}")
+    def save_report(self, _output_path: str = None):
+        report_id = save_report_generic(self.report, "Name_Checker", self.file_path)
+        print(f"Report gespeichert mit ID: {report_id}")
+        return report_id
 
 
 def main():

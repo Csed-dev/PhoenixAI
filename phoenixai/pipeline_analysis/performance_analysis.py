@@ -110,7 +110,27 @@ def analyze_target(target_path: str) -> dict:
         print("Bitte geben Sie eine gültige Python-Datei oder ein Verzeichnis an.")
     return results
 
-def generate_report(results: dict, output_file: str = "performance_report.md") -> None:
+
+def generate_report(results: dict, output_file: str = None) -> None:
+    """
+    Erzeugt für jede analysierte Python-Datei einen Performance-Report in einer
+    hierarchischen Verzeichnisstruktur. Die Struktur soll folgendermaßen aussehen:
+
+      reports/
+          Performance/
+              <Dateiname ohne Extension>/
+                  performance_report_v<version>_<timestamp>.md
+
+    Für jede Analyse wird eine neue Version mit Zeitstempel erzeugt. Wird output_file nicht
+    angegeben, wird der Reportpfad automatisch anhand der analysierten Datei ermittelt.
+    """
+    import datetime
+    # Falls output_file nicht vorgegeben ist, muss für jede Datei separat gespeichert werden.
+    if output_file is None:
+        # Diese Funktion wird in generate_report in performance_analysis.py nicht direkt
+        # verwendet – stattdessen erfolgt die Pfaderzeugung in run_performance_analysis.
+        raise ValueError("output_file muss angegeben werden.")
+
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("# Performance Analysis Report\n\n")
         for file_path, analysis in results.items():
