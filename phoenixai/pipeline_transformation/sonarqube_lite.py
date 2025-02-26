@@ -1,30 +1,37 @@
-import logging
+"""
+This module processes SonarQube issues using a large language model (LLM) to suggest code improvements.
 
+It analyzes SonarQube results, groups issues, generates prompts for an LLM, processes LLM responses, and saves improved code.
+"""
+
+import logging
+from os.path import split
 from pathlib import Path
 import sys
+
 path_root = Path(__file__).parents[2]
 sys.path.append(str(path_root))
 print(sys.path)
-
 from phoenixai.analysis.analyze import sonarqube_analysis
+from phoenixai.utils.base_prompt_handling import (
+    call_llm,
+    generate_initial_prompt,
+    save_code_to_file,
+    trim_code,
+)
 
-from phoenixai.utils.base_prompt_handling import (call_llm, generate_initial_prompt,
-                                                  save_code_to_file, trim_code)
 
 def analyze_sonar_issues():
-    """
-    Führt eine SonarQube-Analyse durch und gibt die gefundenen Issues zurück.
+    """Performs a SonarQube analysis and returns the found issues.
 
-    :return: Dictionary mit den Issues.
-    """
+    Returns:
+        dict: A dictionary containing the issues, or None if no issues are found."""
     logging.info("Starte SonarQube-Analyse...")
     analysis_results = sonarqube_analysis()
     issues = analysis_results.get("issues", {})
-
     if not issues:
         logging.info("Keine SonarQube-Issues gefunden.")
         return None
-
     logging.info(f"Es wurden {len(issues)} Issues gefunden.")
     return issues
 
@@ -33,10 +40,12 @@ def group_issues(issues, file_path, group_size=10):
     """
     Teilt die Issues in Gruppen der angegebenen Größe auf.
 
-    :param issues: Dictionary mit allen Issues.
-    :param group_size: Anzahl der Issues pro Gruppe.
-    :return: Liste von Gruppen (jeder Gruppe ist ein Dictionary von Issues).
-    """
+    Args:
+        issues (dict): A dictionary containing all issues.
+        group_size (int): The number of issues per group.
+
+    Returns:
+        list: A list of groups, where each group is a dictionary of issues."""
     logging.info(
         f"Teile {len(issues)} Issues in Gruppen mit jeweils {group_size} Issues."
     )
@@ -55,41 +64,43 @@ def group_issues(issues, file_path, group_size=10):
 
 
 def generate_group_prompt(issues_group):
-    """
-    Erstellt einen gemeinsamen Prompt für eine Gruppe von Issues.
+    """Creates a combined prompt for a group of issues.
 
-    :param issues_group: Dictionary mit einer Gruppe von Issues.
-    :return: Der generierte Prompt als String.
-    """
+    Args:
+        issues_group (dict): A dictionary containing a group of issues.
+
+    Returns:
+        str: The generated prompt as a string."""
     logging.info(f"Erstelle Prompt für eine Gruppe mit {len(issues_group)} Issues.")
     prompt_parts = []
-    for issue in issues_group['issues']:
+    for issue in issues_group["issues"]:
         prompt_parts.append(
             f"- {issue['message']} (SonarQube-Rule: {issue['rule']}) in Datei {issue['component']}."
         )
-
     prompt = f"{generate_initial_prompt('')}\n" + "\n".join(prompt_parts)
     return prompt
 
 
 def process_group_with_llm(prompt, code_file_paths, iteration=1):
-    """
-    Sendet den gemeinsamen Prompt an das LLM und speichert die verbesserten Codes.
+    """Sends the combined prompt to the LLM and saves the improved codes.
 
-    :param prompt: Der generierte Prompt.
-    :param code_file_paths: Liste der betroffenen Dateien.
-    :param iteration: Iteration, um unterschiedliche Versionen zu speichern.
-    :return: Liste der Pfade zu den verbesserten Dateien.
+    Args:
+        prompt (str): The generated prompt.
+        code_file_paths (list): A list of affected files.
+        iteration (int): The iteration number, used to save different versions.
+
+    Returns:
+        list: A list of paths to the improved files.
+
+    Raises:
+        ValueError: If no response is received from the LLM or an error occurs during the call.
     """
     logging.info(f"Verarbeite Prompt mit {len(code_file_paths)} Dateien.")
     response = call_llm(prompt)
-
     if not response:
         raise ValueError("Keine Antwort vom LLM erhalten oder Fehler beim Aufruf.")
-
     improved_code = trim_code(response.strip())
     improved_files = []
-
     for idx, code_file_path in enumerate(code_file_paths, start=1):
         if ':' in code_file_path:
             code_file_path = code_file_path.replace(':', '/')
@@ -98,23 +109,20 @@ def process_group_with_llm(prompt, code_file_paths, iteration=1):
             code_file_path, improved_code, iteration=iteration + idx
         )
         improved_files.append(improved_file)
-
     return improved_files
 
 
 def process_issue_groups(issue_groups):
-    """
-    Verarbeitet alle Gruppen von Issues.
+    """Processes all groups of issues.
 
-    :param issue_groups: Liste von Gruppen mit Issues.
-    """
+    Args:
+        issue_groups (list): A list of groups with issues."""
     for group_idx, issues_group in enumerate(issue_groups, start=1):
         logging.info(
             f"Verarbeite Gruppe {group_idx}/{len(issue_groups)} mit {len(issues_group)} Issues."
         )
         prompt = generate_group_prompt(issues_group)
-        code_file_paths = [issue["component"] for issue in issues_group['issues']]
-
+        code_file_paths = [issue["component"] for issue in issues_group["issues"]]
         try:
             improved_files = process_group_with_llm(
                 prompt, code_file_paths, iteration=group_idx
@@ -131,8 +139,6 @@ def process_issues_from_sonarqube(file_path):
     Verarbeitet alle SonarQube-Issues, die von der Analyse zurückgegeben werden.
     """
     logging.info("Starte Verarbeitung von SonarQube-Issues...")
-
-    # 1. Issues analysieren
     issues = analyze_sonar_issues()
     if not issues:
         return
@@ -148,6 +154,5 @@ def process_issues_from_sonarqube(file_path):
     process_issue_groups(issue_groups)
 
 
-# Hauptausführung
 if __name__ == "__main__":
     process_issues_from_sonarqube("webscraper_test/main.py")

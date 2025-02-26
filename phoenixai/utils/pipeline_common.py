@@ -17,6 +17,7 @@ class PipelineStep:
         start_time = time.time()
         try:
             self.status = "Running..."
+
             if self.function:
                 self.function(*self.args, **self.kwargs)
             self.status = "🟢 Success"
@@ -63,10 +64,13 @@ class Pipeline:
     def run_next_step(self):
         if self.current_step < len(self.steps):
             step = self.steps[self.current_step]
+            step.status = "Running..."
+            self.display_status()
+            self.treeview.update_idletasks()  # Erzwingt die GUI-Aktualisierung
+
             step.run()
             self.display_status()
 
-            # Callback nach dem Ausführen des Schrittes aufrufen
             if self.step_callback:
                 self.step_callback(step)
 

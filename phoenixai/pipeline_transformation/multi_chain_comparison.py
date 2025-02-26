@@ -1,16 +1,10 @@
-"""
-Dieses Modul implementiert die MultiChainComparison-Klasse, die Prompts mit verschiedenen
-Temperaturen an ein LLM sendet und die generierten Antworten vergleicht, um das beste Ergebnis
-auszuwählen.
-"""
+"""This module implements the MultiChainComparison class, which sends prompts with different temperatures to an LLM and compares the generated responses to select the best result."""
 
 from typing import Callable, List, Any
 
 
 class MultiChainComparison:
-    """
-    Führt den gleichen Prompt mit verschiedenen Temperaturen aus und bewertet die Ergebnisse.
-    """
+    """Runs the same prompt with different temperatures and evaluates the results."""
 
     def __init__(self, prompt: str, temperatures: List[float], test_type: str):
         """
@@ -51,14 +45,11 @@ class MultiChainComparison:
         :param llm_function: Die Funktion, die den Prompt mit einer bestimmten Temperatur ausführt.
         :return: Das beste Ergebnis.
         """
-        # Ergebnisse sammeln
         results = []
         for temp in self.temperatures:
             print(f"[MultiChain] Ausführen mit Temperatur {temp}")
             result = llm_function(self.prompt, temp)
             results.append((temp, result))
-
-        # Vergleich der Ergebnisse
         print("[MultiChain] Ergebnisse werden verglichen...")
         result_texts = [r[1] for r in results]
         temps = [r[0] for r in results]

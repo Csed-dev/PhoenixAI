@@ -56,7 +56,7 @@ def sonarqube_analysis():
     filtered_issues = filter_issue_data(issues['issues'])
     # print(filtered_issues)
     # print(issues)
-    component_tree = sonarqube.measures.get_component_with_specified_measures(component="phoenix-AI", metricKeys="coverage")
+    component_tree = sonarqube.measures.get_component_with_specified_measures(component="fighter_jet", metricKeys="coverage")
     filtered_component_tree = filter_component_tree(component_tree)
     # print(component_tree)
     # print(filtered_component_tree)
