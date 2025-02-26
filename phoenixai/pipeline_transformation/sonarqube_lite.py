@@ -29,7 +29,7 @@ def analyze_sonar_issues():
     return issues
 
 
-def group_issues(issues, group_size=10):
+def group_issues(issues, file_path, group_size=10):
     """
     Teilt die Issues in Gruppen der angegebenen Größe auf.
 
@@ -40,6 +40,13 @@ def group_issues(issues, group_size=10):
     logging.info(
         f"Teile {len(issues)} Issues in Gruppen mit jeweils {group_size} Issues."
     )
+    # filter issues for selected file
+    issue_test_items = []
+    for issue in issues['issues']:
+        if issue['component'] == file_path:
+            print(issue)
+            issue_test_items.append(issue)
+    issues['issues'] = issue_test_items
     issue_items = list(issues.items())
     return [
         dict(issue_items[i : i + group_size])
@@ -84,6 +91,9 @@ def process_group_with_llm(prompt, code_file_paths, iteration=1):
     improved_files = []
 
     for idx, code_file_path in enumerate(code_file_paths, start=1):
+        if ':' in code_file_path:
+            code_file_path = code_file_path.replace(':', '/')
+            
         improved_file = save_code_to_file(
             code_file_path, improved_code, iteration=iteration + idx
         )
@@ -116,7 +126,7 @@ def process_issue_groups(issue_groups):
             logging.error(f"Fehler bei der Verarbeitung von Gruppe {group_idx}: {e}")
 
 
-def process_issues_from_sonarqube():
+def process_issues_from_sonarqube(file_path):
     """
     Verarbeitet alle SonarQube-Issues, die von der Analyse zurückgegeben werden.
     """
@@ -126,9 +136,13 @@ def process_issues_from_sonarqube():
     issues = analyze_sonar_issues()
     if not issues:
         return
-
+    
+    if '/' in file_path:
+        # go for each element except last in directory, then save
+        # file_path = file_path.split(':')[-1]
+        file_path = file_path.replace('/', ':')
     # 2. Issues in Gruppen aufteilen
-    issue_groups = group_issues(issues)
+    issue_groups = group_issues(issues, file_path)
 
     # 3. Gruppen verarbeiten
     process_issue_groups(issue_groups)
@@ -136,4 +150,4 @@ def process_issues_from_sonarqube():
 
 # Hauptausführung
 if __name__ == "__main__":
-    process_issues_from_sonarqube()
+    process_issues_from_sonarqube("webscraper_test/main.py")

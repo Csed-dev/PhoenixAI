@@ -7,6 +7,7 @@ from phoenixai.pipeline_transformation.imports_sort import collect_imports_and_f
 from phoenixai.pipeline_transformation.pylint_workflow import iterative_process_with_pylint
 from phoenixai.pipeline_transformation.sourcery_quick_fix import run_sourcery_fix
 from phoenixai.pipeline_transformation.typ_annotation_updater import annotation_process_file
+from phoenixai.pipeline_transformation.sonarqube_lite import process_issues_from_sonarqube
 
 def run_refactor(file_path, line_numbers=None):
     if line_numbers is None:
@@ -50,6 +51,9 @@ def run_sourcery(file_path):
 def run_custom_prompt(file_path):
     print(f"[Transform] Custom Prompt für {file_path}")
 
+def run_sonar_qube_analysis(file_path):
+    process_issues_from_sonarqube(file_path)
+
 # Dictionary aller Transform-Aktionen
 action_functions = {
     "Refactor": run_refactor,
@@ -60,5 +64,6 @@ action_functions = {
     "Black": run_black,
     "Pylint": run_pylint,
     "Sourcery": run_sourcery,
-    "Custom Prompt": run_custom_prompt
+    "Custom Prompt": run_custom_prompt,
+    "SonarQube": run_sonar_qube_analysis
 }
