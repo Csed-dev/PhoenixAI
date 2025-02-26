@@ -1,5 +1,5 @@
 mytests/
-
+reports/
 cloned_repos/
 data/analysis_results/*
 data/generated_docs/*
@@ -247,3 +247,14 @@ cython_debug/
 
 # # Android studio 3.1+ serialized cache file
 # .idea/caches/build_file_checksums.ser
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v1_2025-02-26_15-59-46.md
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v2_2025-02-26_16-03-05.md
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v3_2025-02-26_16-03-57.md
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v4_2025-02-26_16-09-15.md
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v5_2025-02-26_16-12-49.md
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v6_2025-02-26_16-13-58.md
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v7_2025-02-26_16-16-36.md
+/phoenixai/reports/Name_Checker/refactor_advanced/name_checker_report_v8_2025-02-26_16-20-25.md
+/phoenixai/reports/Name_Checker/test_import_sort/name_checker_report_v1_2025-02-26_16-25-24.md
+/phoenixai/reports/Name_Checker/test_refactor_1/name_checker_report_v1_2025-02-26_16-30-32.md
+/phoenixai/reports/Performance/refactor_advanced/performance_report_v1_2025-02-26_16-25-13.md
