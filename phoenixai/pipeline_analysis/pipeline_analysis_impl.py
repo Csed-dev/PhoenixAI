@@ -1,9 +1,32 @@
 import os
+import subprocess
+
 from phoenixai.pipeline_analysis.name_checker import NameChecker
 from phoenixai.pipeline_analysis.performance_analysis import analyze_target, generate_report
+from phoenixai.pipeline_analysis.visualize_arch import save_arch_report
 
-def run_script1(file_path):
-    print(f"[Analysis] Skript 1 auf: {file_path}")
+
+def run_analyze_arch(file_path):
+    print(f"[Analysis] Architektur-Analyse auf: {file_path}")
+
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "reports", "Architecture")
+    os.makedirs(output_path, exist_ok=True)
+
+    output_file = os.path.join(output_path, "module_dependencies.svg")
+
+    try:
+        result = subprocess.run(["python", "-m", "pydeps", file_path, "-o", output_file, "--max-bacon=2"],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True)
+
+        if result.returncode == 0:
+            print(f"[Analysis] Pydeps erfolgreich ausgeführt. Graph gespeichert unter {output_file}")
+        else:
+            print(f"[Analysis] Fehler bei pydeps: {result.stderr}")
+
+    except FileNotFoundError:
+        print("[Error] Pydeps wurde nicht gefunden. Installiere es mit `pip install pydeps`.")
 
 def run_script2(file_path):
     print(f"[Analysis] Skript 2 auf: {file_path}")
@@ -66,7 +89,7 @@ def run_performance_analysis(file_path: str):
 
 analysis_actions = {
     "Name Checker": run_name_checker,
-    "SonarQube": run_script1,
+    "SonarQube": run_script4,
     "Performance": run_performance_analysis,
-    "Architecture": run_script4,
+    "Architecture": run_analyze_arch,
 }

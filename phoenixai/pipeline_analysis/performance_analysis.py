@@ -38,40 +38,7 @@ def analyze_memory(file_path: str) -> str:
     except Exception as e:
         return f"Fehler bei der Speicheranalyse: {e}"
 
-def run_scalene(file_path: str) -> str:
-    try:
-        result = subprocess.run(
-            ["scalene", file_path],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
-        return result.stdout if result.stdout else "Keine Scalene-Ausgabe erhalten."
-    except Exception as e:
-        return f"Fehler beim Ausführen von Scalene: {e}"
-
-def run_viztracer(file_path: str) -> str:
-    try:
-        result = subprocess.run(
-            ["viztracer", file_path, "--log_file", "viztracer.log", "--max_stack", "10"],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
-        if result.returncode == 0:
-            try:
-                with open("viztracer.log", "r", encoding="utf-8") as log_file:
-                    log_content = log_file.read()
-                return log_content
-            except Exception as e:
-                return f"VizTracer-Log wurde erstellt, konnte aber nicht gelesen werden: {e}"
-        else:
-            return f"Fehler bei VizTracer: {result.stderr}"
-    except Exception as e:
-        return f"Fehler beim Ausführen von VizTracer: {e}"
-
-
-def generate_recommendations(cpu_output: str, memory_output: str, scalene_output: str, viztracer_output: str) -> str:
+def generate_recommendations(cpu_output: str, memory_output: str) -> str:
     recommendations = []
     if "Fehler" in cpu_output:
         recommendations.append("Überprüfen Sie den Code auf Ausführungsfehler während der CPU-Analyse.")
@@ -81,24 +48,20 @@ def generate_recommendations(cpu_output: str, memory_output: str, scalene_output
         recommendations.append("Stellen Sie sicher, dass die Speicheranalyse korrekt durchgeführt wird.")
     else:
         recommendations.append("Falls die Speichernutzung hoch ist, erwägen Sie Optimierungen wie Caching oder eine Speicherbereinigung.")
-    recommendations.append("Nutzen Sie Scalene für eine detaillierte Betrachtung von CPU- und Speicherengpässen.")
-    recommendations.append("VizTracer kann helfen, den Ablauf der Funktionsaufrufe zu verstehen und Engpässe zu erkennen.")
     recommendations.append("Erwägen Sie Parallelisierung oder asynchrone Programmierung, falls die CPU-Auslastung hoch ist.")
     return "\n".join(f"- {rec}" for rec in recommendations)
+
 
 def analyze_file(file_path: str) -> dict:
     analysis = {}
     analysis["cpu_profile"] = analyze_cpu(file_path)
     analysis["memory_profile"] = analyze_memory(file_path)
-    analysis["scalene"] = run_scalene(file_path)
-    analysis["viztracer"] = run_viztracer(file_path)
     analysis["recommendations"] = generate_recommendations(
         analysis["cpu_profile"],
-        analysis["memory_profile"],
-        analysis["scalene"],
-        analysis["viztracer"]
+        analysis["memory_profile"]
     )
     return analysis
+
 
 def analyze_target(target_path: str) -> dict:
     results = {}
@@ -148,14 +111,6 @@ def generate_report(results: dict, output_file: str = None) -> None:
             f.write("### Memory Profiling\n")
             f.write("```\n")
             f.write(analysis["memory_profile"])
-            f.write("\n```\n\n")
-            f.write("### Scalene Output\n")
-            f.write("```\n")
-            f.write(analysis["scalene"])
-            f.write("\n```\n\n")
-            f.write("### VizTracer Output\n")
-            f.write("```\n")
-            f.write(analysis["viztracer"])
             f.write("\n```\n\n")
             f.write("### Empfehlungen zur Performance-Optimierung\n")
             f.write(analysis["recommendations"])
