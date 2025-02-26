@@ -315,6 +315,12 @@ class RepositoryManager:
         destination_path = pathlib.Path(destination_path)
         destination_path.mkdir(parents=True, exist_ok=True)
 
-        # Copy the files
-        shutil.copyfile(dockerfile, destination_path / "Dockerfile")
-        shutil.copyfile(startup_script, destination_path / "startup.py")
+        # Copy the files only if they don't already exist
+        dest_dockerfile = destination_path / "Dockerfile"
+        dest_startup = destination_path / "startup.py"
+
+        if not dest_dockerfile.exists():
+            shutil.copyfile(dockerfile, dest_dockerfile)
+
+        if not dest_startup.exists():
+            shutil.copyfile(startup_script, dest_startup)
