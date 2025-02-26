@@ -59,11 +59,17 @@ def run_viztracer(file_path: str) -> str:
             timeout=120
         )
         if result.returncode == 0:
-            return "VizTracer-Log wurde in 'viztracer.log' erstellt."
+            try:
+                with open("viztracer.log", "r", encoding="utf-8") as log_file:
+                    log_content = log_file.read()
+                return log_content
+            except Exception as e:
+                return f"VizTracer-Log wurde erstellt, konnte aber nicht gelesen werden: {e}"
         else:
             return f"Fehler bei VizTracer: {result.stderr}"
     except Exception as e:
         return f"Fehler beim Ausführen von VizTracer: {e}"
+
 
 def generate_recommendations(cpu_output: str, memory_output: str, scalene_output: str, viztracer_output: str) -> str:
     recommendations = []
@@ -155,48 +161,3 @@ def generate_report(results: dict, output_file: str = None) -> None:
             f.write(analysis["recommendations"])
             f.write("\n\n---\n\n")
     print(f"Report wurde erstellt: {output_file}")
-
-def display_report(report_file: str, port: int = 5000) -> None:
-    from flask import Flask, render_template_string
-    import markdown
-    import threading
-    import webbrowser
-
-    app = Flask(__name__)
-
-    @app.route("/")
-    def index():
-        try:
-            with open(report_file, "r", encoding="utf-8") as f:
-                md_content = f.read()
-        except Exception as e:
-            md_content = f"Fehler beim Laden des Reports: {e}"
-        html_content = markdown.markdown(md_content, extensions=["fenced_code", "codehilite"])
-        template = """
-        <!doctype html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Performance Analysis Report</title>
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/styles/default.min.css">
-            <style>
-                body { font-family: Arial, sans-serif; margin: 40px; }
-                pre { background-color: #f4f4f4; padding: 10px; }
-                code { font-family: monospace; }
-            </style>
-          </head>
-          <body>
-            <h1>Performance Analysis Report</h1>
-            <div>{{ content|safe }}</div>
-          </body>
-        </html>
-        """
-        return render_template_string(template, content=html_content)
-
-    def run_app():
-        app.run(port=port)
-
-    thread = threading.Thread(target=run_app)
-    thread.daemon = True
-    thread.start()
-    webbrowser.open(f"http://localhost:{port}")

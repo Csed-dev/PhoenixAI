@@ -29,22 +29,32 @@ REPORT_TEMPLATE = """
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <p><a href="/">Zurück zur Übersicht</a></p>
     <title>Analyse Report: {{ report_name }}</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 2em; }
         .content { background-color: #f4f4f4; padding: 1em; border-radius: 5px; }
+        pre {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+        }
+        code { font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace; }
         a { text-decoration: none; color: blue; }
     </style>
 </head>
 <body>
-    <h1>Analyse Report: {{ report_name }}</h1>
+    <h1>Analyse Report: </h1>
+    <p><a href="/">Zurück zur Übersicht</a></p>
+    <h2>{{ report_name }}</h2>
     <div class="content">
         {{ report_content|safe }}
     </div>
 </body>
 </html>
 """
+
 
 # HTML-Vorlage für die Indexseite (Übersicht aller Reports)
 INDEX_TEMPLATE = """
@@ -154,16 +164,12 @@ def index():
 
 @app.route("/view_report")
 def view_report():
-    # Verwende nun den Parameter "report" statt "id"
-    report_rel_path = request.args.get("report")
-    if not report_rel_path:
+    report_param = request.args.get("report")
+    if not report_param:
         abort(400, "Kein Report angegeben.")
 
-    # Dekodiere den relativen Pfad
-    report_rel_path = urllib.parse.unquote(report_rel_path)
-    # Erzeuge den vollständigen Pfad zum Report, basierend auf REPORTS_DIR
+    report_rel_path = urllib.parse.unquote(report_param)
     report_path = os.path.join(REPORTS_DIR, report_rel_path)
-    # Sicherheitscheck: Der Report muss innerhalb des REPORTS_DIR liegen
     if not os.path.abspath(report_path).startswith(os.path.abspath(REPORTS_DIR)):
         abort(403, "Zugriff verweigert.")
     if not os.path.isfile(report_path):
@@ -175,9 +181,10 @@ def view_report():
     except Exception as e:
         abort(500, f"Fehler beim Lesen des Reports: {e}")
 
-    # Konvertiere den Markdown-Inhalt in HTML
-    html_content = markdown.markdown(content)
+    # Nutze Markdown-Extensions für Code-Blocks
+    html_content = markdown.markdown(content, extensions=["fenced_code", "codehilite"])
     return render_template_string(REPORT_TEMPLATE, report_name=report_rel_path, report_content=html_content)
+
 
 
 

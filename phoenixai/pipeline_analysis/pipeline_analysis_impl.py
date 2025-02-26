@@ -1,6 +1,6 @@
 import os
 from phoenixai.pipeline_analysis.name_checker import NameChecker
-from phoenixai.pipeline_analysis.performance_analysis import analyze_target, generate_report, display_report
+from phoenixai.pipeline_analysis.performance_analysis import analyze_target, generate_report
 
 def run_script1(file_path):
     print(f"[Analysis] Skript 1 auf: {file_path}")
@@ -63,10 +63,6 @@ def run_performance_analysis(file_path: str):
 
     generate_report(results, report_path)
     print(f"[Analysis] Report gespeichert unter: {report_path}")
-
-    # Starte die Anzeige des Reports über die Flask-Anwendung
-    display_report(report_path, port=5000)
-
 
 analysis_actions = {
     "Name Checker": run_name_checker,
