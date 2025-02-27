@@ -8,8 +8,6 @@ from tkinter import END, filedialog, messagebox
 import tkinter as tk
 import ttkbootstrap as tb
 
-from docs.source.conf import project
-
 
 class RepositoryManager:
     def __init__(self, parent_frame, set_status_callback, populate_repos_callback):

@@ -1,12 +1,10 @@
-# modules/analyze.py
-
 import logging
 
 from sonarqube import SonarQubeClient
 
 # def start_sonarqube_instanz():
     # os.system("echo sonarqube/bin/windows-x86.64/StartSonar.bat")
-    # verfy start somehow
+    # verify start somehow
 
 def analyze_code():
     """
